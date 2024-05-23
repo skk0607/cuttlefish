@@ -23,6 +23,8 @@ private:
 
     const bool is_read_graph_;  // Whether to build a compacted read de Bruijn graph or not.
     const bool is_ref_graph_;   // Whether to build a compacted reference de Bruijn graph or not.
+    // 给输入序列专门设计了一个类
+    // 初始化函数: seq_input_(seq_paths, list_paths, dir_paths),
     const Seq_Input seq_input_; // Collection of the input sequences.
     const uint16_t k_;   // The k parameter for the edge-centric de Bruijn graph to be compacted.
     const std::optional<uint32_t> cutoff_;  // Frequency cutoff for the (k + 1)-mers.
@@ -116,6 +118,13 @@ public:
 
 
     // Returns the sequence input collection.
+    /**
+     * @brief 获取序列输入对象
+     *
+     * 返回当前对象的序列输入对象的常量引用。
+     *
+     * @return 序列输入对象的常量引用
+     */
     const Seq_Input& sequence_input() const
     {
         return seq_input_;
@@ -268,8 +277,16 @@ public:
 
 
     // Returns the path to the optional file storing meta-information about the graph and cuttlefish executions.
+    /**
+     * @brief 获取 JSON 文件路径
+     *
+     * 返回 JSON 文件的路径。该路径由 output_file_path_ 和 JSON 文件扩展名组成。
+     *
+     * @return JSON 文件的路径
+     */
     const std::string json_file_path() const
     {
+        //输出文件路径 + JSON 文件扩展名
         return output_file_path_ + cuttlefish::file_ext::json_ext;
     }
 

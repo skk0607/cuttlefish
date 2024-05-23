@@ -39,6 +39,7 @@ private:
     const State state_read;
 
     // Value read from the bitvector entry when the object is constructed; is mutable.
+    // 在构造 Kmer_Hash_Entry_API 时，从bitvector项读取的值。是可变的。
     State state;
 
 
@@ -91,12 +92,23 @@ private:
 
     // Value read from the bitvector entry when the object is constructed; is immutable.
     const State_Read_Space state_read;
-
+    // 在构造object时，从位向量项读取的值。是可变的。
     // Value read from the bitvector entry when the object is constructed; is mutable.
     State_Read_Space state_;
 
 
     // Constructs an API to the bitvector entry `bv_entry`.
+    /**
+     * @brief Kmer 哈希表条目的构造函数
+     *
+     * 使用给定的位向量条目初始化 Kmer 哈希表条目。
+     *
+     * @param bv_entry 位向量条目引用
+     *
+     * 构造函数会将给定的位向量条目赋值给当前对象的位向量条目，
+     * 并使用相同的位向量条目初始化状态读取器。
+     * 随后，将状态读取器的值赋给当前对象的状态。
+     */
     Kmer_Hash_Entry_API(const bitvector_entry_t& bv_entry):
         bv_entry(bv_entry), state_read(bv_entry)
     {
@@ -121,6 +133,13 @@ private:
 public:
 
     // Returns a reference to the mutable copy of the wrapped state value.
+    /**
+     * @brief 获取状态对象
+     *
+     * 返回当前状态对象的引用。
+     *
+     * @return 当前状态对象的引用
+     */
     State_Read_Space& get_state()
     {
         return state_;

@@ -13,9 +13,12 @@
 class Spin_Lock
 {
 private:
-
-    std::atomic_flag lock_ = ATOMIC_FLAG_INIT;
-
+  // The atomic flag.
+  // 宏定义: ATOMIC_FLAG_INIT = 0
+  std::atomic_flag lock_ = ATOMIC_FLAG_INIT;
+  // lock_ 是一个 std::atomic_flag
+  // 类型的变量，用于实现锁定和解锁操作。ATOMIC_FLAG_INIT 是其初始化器，确保
+  // atomic_flag 的初始状态为未设置。
 
 public:
 
@@ -27,6 +30,13 @@ public:
 };
 
 
+/**
+ * @brief 锁定自旋锁
+ *
+ * 尝试获取自旋锁，如果锁已经被其他线程持有，则不断尝试直到获取成功。
+ * 使用 `memory_order_acquire` 确保在当前线程中的读写操作不会被重新排序到加载变量 `lock_` 之前，
+ * 保证 `lock` 调用之后的内存访问指令顺序不变。
+ */
 inline void Spin_Lock::lock()
 {
     // Due to the memory access order `memory_order_acquire`, no reads or writes in the current thread can be
@@ -38,6 +48,14 @@ inline void Spin_Lock::lock()
 }
 
 
+/**
+ * @brief 解锁Spin_Lock
+ *
+ * 解锁Spin_Lock，释放锁定的资源。
+ *
+ * 使用`memory_order_release`内存访问顺序，确保在当前线程中，此存储操作（`lock_.clear`）之后不会发生任何读写操作（由编译器和处理器强制执行），
+ * 从而确保在`unlock`调用之前的内存访问指令都保持在它之前。
+ */
 inline void Spin_Lock::unlock()
 {
     // Due to the memory access order `memory_order_release`, no reads or writes in the current thread can be

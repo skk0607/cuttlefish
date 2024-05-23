@@ -80,15 +80,28 @@ std::string remove_whitespaces(const char* s)
     return str;
 }
 
-
+/**
+ * @brief 拼接字符串
+ *
+ * 使用指定的分隔符将字符串向量中的字符串拼接成一个字符串，并返回结果。
+ * 返回一个由s中所有字符串拼接而成的字符串，其中字符串之间用delimiter分隔。
+ * @param s 字符串向量
+ * @param delimiter 分隔符
+ *
+ * @return 拼接后的字符串
+ */
 const std::string concat_strings(const std::vector<std::string>& s, const std::string& delimiter)
 {
-    std::ostringstream concat_stream;
-    std::copy(s.begin(), s.end(), std::ostream_iterator<std::string>(concat_stream, delimiter.c_str()));
-
-    std::string concat_str(concat_stream.str());
-    concat_str.erase(concat_str.size() - delimiter.size(), delimiter.size());
-    return concat_str;
+  std::ostringstream concat_stream;
+  // 使用std::copy函数将s中的字符串复制到concat_stream中。这里使用了std::ostream_iterator作为目标迭代器，它会将每个元素（在这里是std::string）插入到concat_stream中，并在每个元素之间插入delimiter。
+  std::copy(
+      s.begin(), s.end(),
+      std::ostream_iterator<std::string>(concat_stream, delimiter.c_str()));
+  // 从concat_stream中提取字符串并保存到concat_str中。
+  std::string concat_str(concat_stream.str());
+  // 删除concat_str末尾的delimiter，因为在步骤4中，最后一个字符串后面也加上了delimiter。
+  concat_str.erase(concat_str.size() - delimiter.size(), delimiter.size());
+  return concat_str;
 }
 
 
@@ -131,8 +144,16 @@ void move_file(const std::string& from_path, const std::string& to_path)
 }
 
 
+/**
+ * @brief 获取进程峰值内存使用量
+ *
+ * 读取进程状态文件，获取进程的峰值内存使用量（以字节为单位）。
+ *
+ * @return 进程的峰值内存使用量（以字节为单位），若读取文件失败则返回0
+ */
 std::size_t process_peak_memory()
 {
+    
     constexpr const char* process_file = "/proc/self/status";
     constexpr const char* peak_mem_field = "VmHWM:";
     const std::size_t field_len = std::strlen(peak_mem_field);
@@ -149,8 +170,9 @@ std::size_t process_peak_memory()
     while(std::fgets(line, sizeof(line) - 1, fp))
         if(std::strncmp(line, peak_mem_field, field_len) == 0)
         {
-            peak_mem = std::strtoul(line + field_len, NULL, 0);
-            break;
+          // 将后面的字符串转换为无符号长整数，并存储在 peak_mem 中。
+          peak_mem = std::strtoul(line + field_len, NULL, 0);
+          break;
         }
 
     

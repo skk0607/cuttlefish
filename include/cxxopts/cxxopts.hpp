@@ -277,7 +277,7 @@ namespace cxxopts
     const std::string RQUOTE("’");
 #endif
   } // namespace
-
+  // Value 自定义类,继承自 std::enable_shared_from_this<Value>
   class Value : public std::enable_shared_from_this<Value>
   {
     public:
@@ -308,7 +308,8 @@ namespace cxxopts
 
     virtual std::string
     get_implicit_value() const = 0;
-
+    // 虚函数 参数:string& 返回指向const std::string& value 的共享指针
+    // std::shared_ptr<Value>
     virtual std::shared_ptr<Value>
     default_value(const std::string& value) = 0;
 
@@ -853,20 +854,40 @@ namespace cxxopts
         return m_implicit;
       }
 
+      /**
+       * @brief 设置默认值
+       *
+       * 设置当前对象的默认值为指定的字符串值，并将标记设置为 true。
+       *
+       * @param value 默认值字符串
+       *
+       * @return 返回当前对象的共享指针 std::shared_ptr<Value>类型的指针
+       */
       std::shared_ptr<Value>
       default_value(const std::string& value) override
       {
         m_default = true;
         m_default_value = value;
+        // shared_from_this()是一个成员函数，用于生成一个指向当前对象的std::shared_ptr。
         return shared_from_this();
       }
 
+      /**
+       * @brief 隐式赋值
+       *
+       * 将给定的字符串值隐式地赋给当前对象，并设置隐式标志为 true。
+       * 返回当前对象的共享指针。
+       *
+       * @param value 字符串值
+       *
+       * @return 当前对象的共享指针
+       */
       std::shared_ptr<Value>
       implicit_value(const std::string& value) override
       {
         m_implicit = true;
         m_implicit_value = value;
-        return shared_from_this();
+        return shared_from_this();//返回当前对象的共享指针,如果存在则返回存在的，否则创建一个新的shared_ptr
       }
 
       std::shared_ptr<Value>
@@ -934,11 +955,24 @@ namespace cxxopts
       public:
       ~standard_value() override = default;
 
+      /**
+       * @brief 设置标准值
+       *
+       * 此函数用于设置默认和隐式值。
+       */
       standard_value()
       {
         set_default_and_implicit();
       }
 
+      /**
+       * @brief 构造函数
+       *
+       * 使用给定的布尔指针构造一个标准值对象，并调用父类构造函数进行初始化。
+       * 设置默认值和隐式值。
+       *
+       * @param b 布尔指针
+       */
       explicit standard_value(bool* b)
       : abstract_value(b)
       {
@@ -953,6 +987,12 @@ namespace cxxopts
 
       private:
 
+      /**
+       * @brief 设置默认和隐式值
+       *
+       * 将 m_default 设置为 true，并将 m_default_value 设置为 "false"。
+       * 将 m_implicit 设置为 true，并将 m_implicit_value 设置为 "true"。
+       */
       void
       set_default_and_implicit()
       {
@@ -965,9 +1005,14 @@ namespace cxxopts
   } // namespace values
 
   template <typename T>
-  std::shared_ptr<Value>
-  value()
-  {
+  /**
+   * @brief 获取值的共享指针
+   * std::shared_ptr是一个引用计数型智能指针，当最后一个std::shared_ptr引用某个对象时，它会自动删除该对象。
+   * 返回一个标准值的共享指针。
+   *
+   * @return 值的共享指针 std::shared_ptr<Value>
+   */
+  std::shared_ptr<Value> value() {
     return std::make_shared<values::standard_value<T>>();
   }
 
@@ -1799,6 +1844,16 @@ Options::parse_positional(std::initializer_list<std::string> options)
   parse_positional(std::vector<std::string>(options));
 }
 
+/**
+ * @brief 解析命令行选项
+ *
+ * 解析命令行参数，并根据预设的选项和位置参数进行匹配和解析。
+ *
+ * @param argc 命令行参数数量（引用传递，解析后会更新）
+ * @param argv 命令行参数数组（引用传递，解析后会更新）
+ *
+ * @return 解析结果，包含解析后的选项和位置参数
+ */
 inline
 ParseResult
 Options::parse(int& argc, char**& argv)

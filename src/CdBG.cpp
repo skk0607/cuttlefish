@@ -98,16 +98,34 @@ kmer_Enumeration_Stats<k> CdBG<k>::enumerate_vertices() const
 
 
 template <uint16_t k>
+/**
+ * @brief 构建哈希表
+ *
+ * 根据给定的顶点数量，构建哈希表。
+ *
+ * @param vertex_count 顶点数量
+ */
 void CdBG<k>::construct_hash_table(const uint64_t vertex_count)
 {
-    std::size_t max_memory = std::max(process_peak_memory(), params.max_memory() * 1024U * 1024U * 1024U);
-    max_memory = (max_memory > parser_memory ? max_memory - parser_memory : 0);
+  // process_peak_memory()： proc/self/status 文件中记录的读取文件的进程
+  // 峰值内存(文件的单位是KB) * 1024 -> 字节
+  // 与输入参数中的 max_memory  * 1024^3 
+  // 为什么要这样预估最大内存?
+  std::size_t max_memory = std::max(
+      process_peak_memory(), params.max_memory() * 1024U * 1024U * 1024U);
+  max_memory = (max_memory > parser_memory ? max_memory - parser_memory : 0);
+  // std::make_unique 离开作用域就立刻释放内存
+  hash_table = (params.strict_memory()
+                    ? std::make_unique<
+                          Kmer_Hash_Table<k, cuttlefish::BITS_PER_REF_KMER>>(
+                          logistics.vertex_db_path(), vertex_count, max_memory)
+                    : std::make_unique<
+                          Kmer_Hash_Table<k, cuttlefish::BITS_PER_REF_KMER>>(
+                          logistics.vertex_db_path(), vertex_count, max_memory,
+                          std::numeric_limits<double>::max()));
 
-    hash_table = (params.strict_memory() ?
-                    std::make_unique<Kmer_Hash_Table<k, cuttlefish::BITS_PER_REF_KMER>>(logistics.vertex_db_path(), vertex_count, max_memory) :
-                    std::make_unique<Kmer_Hash_Table<k, cuttlefish::BITS_PER_REF_KMER>>(logistics.vertex_db_path(), vertex_count, max_memory, std::numeric_limits<double>::max()));
-
-    hash_table->construct(params.thread_count(), logistics.working_dir_path(), params.mph_file_path(), params.save_mph());
+  hash_table->construct(params.thread_count(), logistics.working_dir_path(),
+                        params.mph_file_path(), params.save_mph());
 }
 
 

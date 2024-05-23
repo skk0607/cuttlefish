@@ -43,11 +43,19 @@ const std::vector<std::string>& Seq_Input::dir_paths() const
 }
 
 
+/**
+ * @brief 获取序列
+ *
+ * 从给定的原始序列路径、序列列表和序列目录中收集序列，并返回包含所有序列的字符串向量。
+ *
+ * @return 包含所有序列的字符串向量
+ */
 const std::vector<std::string> Seq_Input::seqs() const
 {
     std::vector<std::string> seqs;
 
     // Collect sequences from the raw sequence paths provided.
+    //  从提供的原始序列路径中收集序列。
     seqs.insert(seqs.end(), seq_paths_.begin(), seq_paths_.end());
 
 

@@ -55,6 +55,13 @@ Build_Params::Build_Params( const bool is_read_graph,
     {}
 
 
+/**
+ * @brief 检查参数是否有效
+ *
+ * 检查 `Build_Params` 对象中的参数是否有效，如果无效则返回 `false`，否则返回 `true`。
+ *
+ * @return 如果参数有效返回 `true`，否则返回 `false`
+ */
 bool Build_Params::is_valid() const
 {
     bool valid = true;
@@ -76,8 +83,9 @@ bool Build_Params::is_valid() const
         valid = false;
     }
 
-
     // Unsupported thread counts are to be discarded.
+    // 它用于查询系统可用的硬件并发线程数。这通常对应于系统的逻辑处理器数量，例如，在多核
+    // CPU 或具有超线程技术的 CPU 上，这个函数会返回可用的逻辑核心数。
     const auto num_threads = std::thread::hardware_concurrency();
     if(num_threads > 0 && thread_count_ > num_threads)
     {

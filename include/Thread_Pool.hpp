@@ -76,33 +76,39 @@ private:
 
 
 public:
+  // Constructs a thread pool with `thread_count` number of threads to operate
+  // on the de Brujin graph `dBG` for tasks of type `task_type`.
+  // 使用`thread_count`构造一个线程池，用于在de Brujin图`dBG`上操作类型为`task_type`的任务。
+  Thread_Pool(uint16_t thread_count, void *dBG, Task_Type task_type);
 
-    // Constructs a thread pool with `thread_count` number of threads to operate
-    // on the de Brujin graph `dBG` for tasks of type `task_type`.
-    Thread_Pool(uint16_t thread_count, void* dBG, Task_Type task_type);
+  // Returns the id (number) of an idle thread from the pool.
+  uint16_t get_idle_thread() const;
 
-    // Returns the id (number) of an idle thread from the pool.
-    uint16_t get_idle_thread() const;
+  // Waits until the thread number `thread_id` becomes idle.
+  void get_thread(uint16_t thread_id) const;
 
-    // Waits until the thread number `thread_id` becomes idle.
-    void get_thread(uint16_t thread_id) const;
+  // Assigns a classification task to the thread number `thread_id` with the
+  // provided parameters.
+  void assign_classification_task(uint16_t thread_id, const char *seq,
+                                  size_t seq_len, size_t left_end,
+                                  size_t right_end);
 
-    // Assigns a classification task to the thread number `thread_id` with the provided parameters.
-    void assign_classification_task(uint16_t thread_id, const char* seq, size_t seq_len, size_t left_end, size_t right_end);
+  // Assigns an outputting task to the thread number `thread_id` with the
+  // provided parameters.
+  void assign_output_task(uint16_t thread_id, const char *seq, size_t seq_len,
+                          size_t left_end, size_t right_end);
 
-    // Assigns an outputting task to the thread number `thread_id` with the provided parameters.
-    void assign_output_task(uint16_t thread_id, const char* seq, size_t seq_len, size_t left_end, size_t right_end);
+  // Assigns a read-dBG compaction task, either DFA-states computation or
+  // maximal unitigs extraction, to the thread number `thread_id`; the edges
+  // (i.e. (k + 1)-mers) or vertices (i.e. k-mers), respectively, are parsed
+  // using `parser`.
+  void assign_read_dBG_compaction_task(void *parser, uint16_t thread_id);
 
-    // Assigns a read-dBG compaction task, either DFA-states computation or maximal unitigs extraction,
-    // to the thread number `thread_id`; the edges (i.e. (k + 1)-mers) or vertices (i.e. k-mers),
-    // respectively, are parsed using `parser`.
-    void assign_read_dBG_compaction_task(void* parser, uint16_t thread_id);
+  // Waits until all the threads in the pool have completed their active tasks.
+  void wait_completion() const;
 
-    // Waits until all the threads in the pool have completed their active tasks.
-    void wait_completion() const;
-
-    // Closes the thread pool.
-    void close();
+  // Closes the thread pool.
+  void close();
 };
 
 

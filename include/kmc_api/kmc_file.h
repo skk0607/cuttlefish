@@ -36,7 +36,9 @@ struct CKMCFileInfo
 	uint64 total_kmers;
 };
 
-// Forward declare Cuttlefish's k-mer class; required to parse KMC raw binary k-mers to Cuttlefish format.
+// Forward declare Cuttlefish's k-mer class; required to parse KMC raw binary
+// k-mers to Cuttlefish format.
+// 转发声明Cuttlefish的k-mer类;需要将KMC原始二进制k-mers解析为墨鱼格式。
 template <uint16_t k> class Kmer;
 
 class CKMC_DB
@@ -126,6 +128,7 @@ public:
 	bool open_for_cuttlefish_listing(const std::string& file_name);
 
 	// Open files `*kmc_pre` & `*.kmc_suf`, and read KMC DB parameters to RAM.
+	// 打开文件`*kmc_pre` & `。kmc_suf '，并将KMC DB参数读取到RAM。
 	bool read_parameters(const std::string& file_name);
 
 	// Returns the size of a suffix-record in disk (in bytes); i.e. suffix-size plus counter-size.
@@ -487,6 +490,17 @@ inline bool CKMC_DB::ReadNextKmer(CKmerAPI &kmer, uint64 &count)
 
 
 
+/**
+ * @brief 读取原始后缀
+ *
+ * 从文件中读取原始后缀，并将读取到的后缀存储在指定的缓冲区中。同时，将前缀和对应的后缀数量存储在另一个容器中。
+ *
+ * @param suff_buf 存储后缀的缓冲区指针
+ * @param pref_buf 存储前缀和对应后缀数量的容器引用
+ * @param max_bytes_to_read 最大读取字节数
+ *
+ * @return 成功读取的后缀数量
+ */
 inline uint64_t CKMC_DB::read_raw_suffixes(uint8_t* const suff_buf, std::vector<std::pair<uint64_t, uint64_t>>& pref_buf, const size_t max_bytes_to_read)
 {
 	if(is_opened != opened_for_listing)
@@ -573,12 +587,22 @@ inline uint64_t CKMC_DB::curr_suffix_idx() const
 
 
 template <uint16_t k>
+/**
+ * @brief 解析kmer缓冲区
+ *
+ * 将给定的前缀迭代器、后缀缓冲区、缓冲区索引和kmer对象作为参数，解析kmer缓冲区并更新kmer对象。
+ *
+ * @param prefix_it 前缀迭代器引用 解引用是 0,230
+ * @param suff_buf 后缀缓冲区指针
+ * @param buf_idx 缓冲区索引
+ * @param kmer kmer对象引用
+ */
 inline void CKMC_DB::parse_kmer_buf(std::vector<std::pair<uint64_t, uint64_t>>::iterator& prefix_it, const uint8_t* const suff_buf, size_t buf_idx, Kmer<k>& kmer) const
 {
 	static constexpr uint16_t NUM_INTS = (k + 31) / 32;
 	uint64_t kmc_data[NUM_INTS]{};
 
-	// Check if we have exhausted the currrent prefix.
+	// Check if we have exhausted the currrent prefix. 检查当前的前缀是否已经用完。
 	if(prefix_it->second == 0)
 		++prefix_it;
 

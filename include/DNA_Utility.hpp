@@ -141,6 +141,7 @@ public:
 
     // Returns the mapping `DNA::Extended_Base` representation of the
     // `DNA::Base` representation `base`.
+    // 映射`DNA::Extended_Base`为对应的`DNA::Base`，即从[0(a) - T(3)]到[1(a) - 4(T)]的映射。
     static DNA::Extended_Base map_extended_base(const DNA::Base base)
     {
         return MAPPED_EXTENDED_BASE[base];

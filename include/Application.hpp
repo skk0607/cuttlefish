@@ -14,6 +14,14 @@ class Validation_Params;
 
 
 // The top-level application class for the compaction algorithm.
+/*
+定义了一个模板类Application，它接受两个模板参数：一个无符号16位整数k和一个模板模板参数T_App。这个类主要用于表示一个应用程序的实例，并且这个实例在某种层次结构（top-down
+hierarchy）中与其它应用程序实例相关联。
+
+typename:表示T_App是一个类型参数,与之相对比就是
+k,不是类型参数,声明时直接使用数字即可.
+T_APP是 需要 template <uint16_t k> class kmer_Enumeration_Stats; 声明的参数
+*/
 template <uint16_t k, template<uint16_t> typename T_App>
 class Application
 {
@@ -43,6 +51,7 @@ public:
     ~Application();
 
     // Executes the compaction algorithm.
+    // 本质是在cpp文件里调用app->execute()
     void execute() const;
 
     // Validates the result of the compaction algorithm.

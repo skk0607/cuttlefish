@@ -43,19 +43,23 @@ int main(int argc, char** argv)
         display_help_message();
     else
     {
-        std::string command(argv[1]);
-        std::transform(command.begin(), command.end(), command.begin(), [](const char ch) { return std::tolower(ch); });
+      std::string command(argv[1]);
+      printf("%s\n", command.c_str());
+      // std::transform 的作用是将 command 字符串中的所有字符转换为小写。
+      // 这个函数使用了lambda表达式，lambda表达式可以捕获变量。
+      std::transform(command.begin(), command.end(), command.begin(),
+                     [](const char ch) { return std::tolower(ch); });
 
-        if(command == "build")
-            return cf_build(argc - 1, argv + 1);
-        else if(command == "validate")
-            return cf_validate(argc - 1, argv + 1);
-        else if(command == "help")
-            display_help_message();
-        else if(command == "version")
-            std::cout << executable_version() << "\n";
-        else
-            display_help_message();
+      if (command == "build")
+        return cf_build(argc - 1, argv + 1);
+      else if (command == "validate")
+        return cf_validate(argc - 1, argv + 1);
+      else if (command == "help")
+        display_help_message();
+      else if (command == "version")
+        std::cout << executable_version() << "\n";
+      else
+        display_help_message();
     }
 
     return EXIT_SUCCESS;

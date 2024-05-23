@@ -147,38 +147,67 @@ private:
 
 
 template <uint16_t k>
+/**
+ * @brief 添加邻接边
+ *
+ * 将给定的端点对应的边添加到哈希表中。
+ *
+ * @param endpoint 端点对象
+ *
+ * @return 如果成功添加边则返回 true，否则返回 false
+ */
 inline bool Read_CdBG_Constructor<k>::add_incident_edge(const Endpoint<k>& endpoint)
 {
     // Fetch the hash table entry for the vertex associated to the endpoint.
-
+    // 获取与端点关联的顶点的散列表项。
     Kmer_Hash_Entry_API<cuttlefish::BITS_PER_READ_KMER> bucket = hash_table[endpoint.hash()];
-    State_Read_Space& state = bucket.get_state();
+    // 这里返回的是 state_
+    State_Read_Space &state = bucket.get_state();
+    // edge_encoding_t = DNA::Extended_Base
+    // 这里是根据back和front来获取DNA::Extended_Base
+    // extended_base 记录下一个碱基或者 分支状态
     const cuttlefish::edge_encoding_t e_curr = state.edge_at(endpoint.side());
 
     // If we've already discarded the incidence information for this side, then a self-transition happens.
+    // 如果我们已经丢弃了这一侧的关联信息，则会发生自转换。
     if(e_curr == cuttlefish::edge_encoding_t::N)
-        return true;    // The side has already been determined to be branching—nothing to update here anymore.
+        return true;    // The side has already been determined to be branching—nothing to update here anymore.这边已经确定要进行分支，这里不再需要更新任何内容。
 
     cuttlefish::edge_encoding_t e_new = endpoint.edge();
     if(e_curr != cuttlefish::edge_encoding_t::E)    // The side is not empty.
     {
-        // We can get away without updating the same value again, because — (1) even if this DFA's state changes
-        // in the hash table by the time this method completes, making no updates at this point is theoretically
-        // equivalent to returning instantaneously as soon as the hash table value had been read; and also (2) the
-        // ordering of the edges processed does not matter in the algorithm.
+      // We can get away without updating the same value again, because — (1)
+      // even if this DFA's state changes in the hash table by the time this
+      // method completes, making no updates at this point is theoretically
+      // equivalent to returning instantaneously as soon as the hash table value
+      // had been read; and also (2) the ordering of the edges processed does
+      // not matter in the algorithm.
+      // 我们可以不用再次更新相同的值，因为-
+      // (1) 即使这个方法完成时，这个DFA的状态在哈希表中发生了变化，从理论上讲，此时不进行更新等同于一旦读取哈希表的值就立即返回;
+      // (2) 在算法中，所处理边的顺序无关紧要。
         if(e_new == e_curr)
             return true;
 
         // This side has been visited earlier, but with a different edge—discard the incidence information.
+        // 这一侧之前已经访问过，但具有不同的边——丢弃邻接信息。
         e_new = cuttlefish::edge_encoding_t::N;
     }
-
+    // side = front就设置front的编码,反之back的编码。
     state.update_edge_at(endpoint.side(), e_new);
     return hash_table.update(bucket);
 }
 
 
 template <uint16_t k>
+/**
+ * @brief 添加交叉环
+ *
+ * 向 Read_CdBG_Constructor 的 DFA 中添加与端点关联的交叉环。
+ *
+ * @param endpoint 端点信息
+ *
+ * @return 如果成功添加交叉环，则返回 true；否则返回 false
+ */
 inline bool Read_CdBG_Constructor<k>::add_crossing_loop(const Endpoint<k>& endpoint)
 {
     // Fetch the hash table entry for the DFA of vertex associated to the endpoint.

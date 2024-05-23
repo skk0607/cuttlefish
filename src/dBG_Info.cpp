@@ -103,8 +103,19 @@ void dBG_Info<k>::add_unipaths_info(const CdBG<k>& cdbg)
 
 
 template <uint16_t k>
+/**
+ * @brief 添加构建参数
+ *
+ * 将给定的构建参数添加到dBG信息中。
+ *
+ * @tparam k k值类型
+ *
+ * @param params 构建参数对象
+ */
 void dBG_Info<k>::add_build_params(const Build_Params& params)
 {
+  // 嵌套字典, dg_info[params_field][key] = value
+  // 这里将输入序列 都被拼接成1个字符串,序列之间放置来分隔符
     dBg_info[params_field]["input"] = concat_strings(params.sequence_input().seqs());
     dBg_info[params_field]["k"] = params.k();
     dBg_info[params_field]["output prefix"] = params.output_prefix();

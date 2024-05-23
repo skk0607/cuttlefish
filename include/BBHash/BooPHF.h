@@ -591,6 +591,16 @@ we need this 2-functors scheme because HashFunctors won't work with unordered_ma
 	};
 
 	template <typename Iterator>
+	/**
+	 * @brief 创建一个迭代器范围对象
+	 *
+	 * 根据给定的起始迭代器和结束迭代器，创建一个迭代器范围对象。
+	 *
+	 * @param begin 起始迭代器
+	 * @param end 结束迭代器
+	 *
+	 * @return 迭代器范围对象
+	 */
 	iter_range<Iterator> range(Iterator begin, Iterator end)
 	{
 		return iter_range<Iterator>(begin, end);
@@ -1021,6 +1031,16 @@ we need this 2-functors scheme because HashFunctors won't work with unordered_ma
 		}
 
 
+		/**
+		 * @brief 查找元素的最小哈希值
+		 *
+		 * 根据给定的元素在哈希表中查找其对应的最小哈希值。
+		 * 如果哈希表未构建完成，则返回最大值ULLONG_MAX。
+		 *
+		 * @param elem 要查找的元素
+		 *
+		 * @return 元素的最小哈希值，若元素不存在则返回ULLONG_MAX
+		 */
 		uint64_t lookup(const elem_t& elem)
 		{
 			if(! _built) return ULLONG_MAX;

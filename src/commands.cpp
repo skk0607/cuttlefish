@@ -26,66 +26,80 @@ extern "C" {
 // Driver function for the CdBG build.
 int cf_build(int argc, char** argv)
 {
-    cxxopts::Options options("cuttlefish build", "Efficiently construct the compacted de Bruijn graph from sequencing reads or reference sequences");
+  // 创建cxxopts::Options类对象
+  // 名称: cuttlefish build,描述:Efficiently construct the compacted de Bruijn
+  cxxopts::Options options(
+      "cuttlefish build", "Efficiently construct the compacted de Bruijn graph "
+                          "from sequencing reads or reference sequences");
+  // std::optional C++17引入的模板类,用来描述一个值可能存在也可能不存在的情况。
+  std::optional<std::vector<std::string>> seqs;
+  std::optional<std::vector<std::string>> lists;
+  std::optional<std::vector<std::string>> dirs;
+  std::optional<std::size_t> max_memory;
+  //common 选项组
+  options.add_options("common")(
+      "s,seq", "input files", // -s or --seq 描述:输入文件 -> 存入seqs
+      cxxopts::value<std::optional<std::vector<std::string>>>(seqs))(
+      "l,list", "input file lists",
+      cxxopts::value<std::optional<std::vector<std::string>>>(lists))(
+      "d,dir", "input file directories",
+      cxxopts::value<std::optional<std::vector<std::string>>>(dirs))(
+      "k,kmer-len",
+      "k-mer length", //-k存储在standard_value 类构造函数 调用的default_value方法,这个方法返回指向当前对象的共享指针
+      cxxopts::value<uint16_t>()->default_value(
+          std::to_string(cuttlefish::_default::K)))(
+      "t,threads", "number of threads to use",
+      cxxopts::value<uint16_t>()->default_value(
+          std::to_string(cuttlefish::_default::THREAD_COUNT)))(
+      "o,output", "output file", cxxopts::value<std::string>())(
+      "w,work-dir", "working directory",
+      cxxopts::value<std::string>()->default_value(
+          cuttlefish::_default::WORK_DIR))(
+      "m,max-memory",
+      "soft maximum memory limit in GB (default: " +
+          std::to_string(cuttlefish::_default::MAX_MEMORY) + ")",
+      cxxopts::value<std::optional<std::size_t>>(max_memory))(
+      "unrestrict-memory",
+      "do not impose memory usage restriction")("h,help", "print usage");
 
-    std::optional<std::vector<std::string>> seqs;
-    std::optional<std::vector<std::string>> lists;
-    std::optional<std::vector<std::string>> dirs;
-    std::optional<std::size_t> max_memory;
-    options.add_options("common")
-        ("s,seq", "input files",
-            cxxopts::value<std::optional<std::vector<std::string>>>(seqs))
-        ("l,list", "input file lists",
-            cxxopts::value<std::optional<std::vector<std::string>>>(lists))
-        ("d,dir", "input file directories",
-            cxxopts::value<std::optional<std::vector<std::string>>>(dirs))
-        ("k,kmer-len", "k-mer length",
-            cxxopts::value<uint16_t>()->default_value(std::to_string(cuttlefish::_default::K)))
-        ("t,threads", "number of threads to use",
-            cxxopts::value<uint16_t>()->default_value(std::to_string(cuttlefish::_default::THREAD_COUNT)))
-        ("o,output", "output file",
-            cxxopts::value<std::string>())
-        ("w,work-dir", "working directory",
-            cxxopts::value<std::string>()->default_value(cuttlefish::_default::WORK_DIR))
-        ("m,max-memory", "soft maximum memory limit in GB (default: " + std::to_string(cuttlefish::_default::MAX_MEMORY) + ")",
-            cxxopts::value<std::optional<std::size_t>>(max_memory))
-        ("unrestrict-memory", "do not impose memory usage restriction")
-        ("h,help", "print usage")
-        ;
+  std::optional<uint32_t> cutoff;
+  options.add_options("cuttlefish_2")(
+      "read", "construct a compacted read de Bruijn graph (for FASTQ input)")(
+      "ref",
+      "construct a compacted reference de Bruijn graph (for FASTA input)")(
+      "c,cutoff",
+      "frequency cutoff for (k + 1)-mers (default: refs: " +
+          std::to_string(cuttlefish::_default::CUTOFF_FREQ_REFS) + ", reads: " +
+          std::to_string(cuttlefish::_default::CUTOFF_FREQ_READS) + ")",
+      cxxopts::value<std::optional<uint32_t>>(cutoff))(
+      "path-cover", "extract a maximal path cover of the de Bruijn graph");
 
-    std::optional<uint32_t> cutoff;
-    options.add_options("cuttlefish_2")
-        ("read", "construct a compacted read de Bruijn graph (for FASTQ input)")
-        ("ref", "construct a compacted reference de Bruijn graph (for FASTA input)")
-        ("c,cutoff", "frequency cutoff for (k + 1)-mers (default: refs: " + std::to_string(cuttlefish::_default::CUTOFF_FREQ_REFS) + ", reads: " + std::to_string(cuttlefish::_default::CUTOFF_FREQ_READS) + ")",
-            cxxopts::value<std::optional<uint32_t>>(cutoff))
-        ("path-cover", "extract a maximal path cover of the de Bruijn graph")
-        ;
-    
-    std::optional<uint16_t> format_code;
-    options.add_options("cuttlefish_1")
-        ("f,format", "output format (0: FASTA, 1: GFA 1.0, 2: GFA 2.0, 3: GFA-reduced)",
-            cxxopts::value<std::optional<uint16_t>>(format_code))
-        ("track-short-seqs", "track existence of sequences shorter than k bases")
-        ("poly-N-stretch", "includes information of polyN stretches in the tiling output")
-        ;
+  std::optional<uint16_t> format_code;
+  options.add_options("cuttlefish_1")(
+      "f,format",
+      "output format (0: FASTA, 1: GFA 1.0, 2: GFA 2.0, 3: GFA-reduced)",
+      cxxopts::value<std::optional<uint16_t>>(format_code))(
+      "track-short-seqs", "track existence of sequences shorter than k bases")(
+      "poly-N-stretch",
+      "includes information of polyN stretches in the tiling output");
 
-    options.add_options("specialized")
-        ("save-mph", "save the minimal perfect hash (BBHash) over the vertex set")
-        ("save-buckets", "save the DFA-states collection of the vertices")
-        ("save-vertices", "save the vertex set of the graph")
-        ;
+  options.add_options("specialized")(
+      "save-mph", "save the minimal perfect hash (BBHash) over the vertex set")(
+      "save-buckets", "save the DFA-states collection of the vertices")(
+      "save-vertices", "save the vertex set of the graph");
 
-    options.add_options("debug")
-        ("vertex-set", "set of vertices, i.e. k-mers (KMC database) prefix",
-            cxxopts::value<std::string>()->default_value(cuttlefish::_default::EMPTY))
-        ("edge-set", "set of edges, i.e. (k + 1)-mers (KMC database) prefix",
-            cxxopts::value<std::string>()->default_value(cuttlefish::_default::EMPTY))
+  options.add_options("debug")(
+      "vertex-set", "set of vertices, i.e. k-mers (KMC database) prefix",
+      cxxopts::value<std::string>()->default_value(
+          cuttlefish::_default::EMPTY))(
+      "edge-set", "set of edges, i.e. (k + 1)-mers (KMC database) prefix",
+      cxxopts::value<std::string>()->default_value(cuttlefish::_default::EMPTY))
 #ifdef CF_DEVELOP_MODE
-        ("gamma", "gamma for the BBHash MPHF",
-            cxxopts::value<double>()->default_value(std::to_string(cuttlefish::_default::GAMMA)))
+      ("gamma", "gamma for the BBHash MPHF",
+       cxxopts::value<double>()->default_value(
+           std::to_string(cuttlefish::_default::GAMMA)))
 #endif
-        ;
+      ;
 
     try
     {
@@ -116,7 +130,7 @@ int cf_build(int argc, char** argv)
 #ifdef CF_DEVELOP_MODE
         const double gamma = result["gamma"].as<double>();
 #endif
-
+        //专门声明了一个Build_Params类，用于封装输入参数
         const Build_Params params(  is_read_graph, is_ref_graph,
                                     seqs, lists, dirs,
                                     k, cutoff, vertex_db, edge_db, thread_count, max_memory, strict_memory,

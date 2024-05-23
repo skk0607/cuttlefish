@@ -9,17 +9,25 @@
 
 
 template <uint16_t k>
+/**
+ * @brief 线程池构造函数
+ *
+ * 创建一个线程池对象，并初始化相关成员变量。
+ *
+ * @param thread_count 线程数量
+ * @param dBG 指向线程池使用的数据结构的指针
+ * @param task_type 任务类型
+ */
 Thread_Pool<k>::Thread_Pool(const uint16_t thread_count, void* const dBG, const Task_Type task_type):
     thread_count(thread_count),
     dBG(dBG),
     task_type(task_type),
-    task_status(new volatile Task_Status[thread_count])
+    task_status(new volatile Task_Status[thread_count])//使用 new 关键字动态分配了一个 Task_Status 类型的数组，数组的大小由 thread_count 决定。volatile 关键字用于告诉编译器，这个数组的值可能会在程序的控制之外被改变，因此编译器不应该对这个数组的访问进行优化。
 {
     // Mark the status of the task for each thread as `pending`.
     for(uint16_t t_id = 0; t_id < thread_count; ++t_id)
-        task_status[t_id] = Task_Status::pending;
+      task_status[t_id] = Task_Status::pending; // 每个线程都尚未提供任务
 
-    
     // Resize the parameters collections.
     switch(task_type)
     {
@@ -43,14 +51,26 @@ Thread_Pool<k>::Thread_Pool(const uint16_t thread_count, void* const dBG, const 
         std::exit(EXIT_FAILURE);
     }
 
-
     // Launch the threads.
+    // task: 每个线程的构造函数的输入函数参数
+    // this: 作为参数传递给 emplace_back，确保了新创建的线程将使用当前对象的
+    // task 函数实例。
+    // t_id: 线程的 ID,作为task函数的参数
+    // 由于成员函数属于类的对象，调用成员函数时需要一个隐式的 this
+    // 指针来访问该对象的成员变量和成员函数。
     for(uint16_t t_id = 0; t_id < thread_count; ++t_id)
         thread_pool.emplace_back(&Thread_Pool::task, this, t_id);
 }
 
 
 template <uint16_t k>
+/**
+ * @brief 线程池任务函数
+ *
+ * 根据指定的线程ID执行线程池中的任务。
+ *
+ * @param thread_id 线程ID
+ */
 void Thread_Pool<k>::task(const uint16_t thread_id)
 {
     while(true)
@@ -91,10 +111,14 @@ void Thread_Pool<k>::task(const uint16_t thread_id)
                 break;
             
             case Task_Type::compute_states_read_space:
-                {
+                {//线程池里所有线程任务都相同
                     const Read_dBG_Compaction_Params& params = read_dBG_compaction_params[thread_id];
-                    static_cast<Read_CdBG_Constructor<k>*>(dBG)->
-                        process_edges(static_cast<Kmer_SPMC_Iterator<k + 1>*>(params.parser), params.thread_id);
+                    static_cast<Read_CdBG_Constructor<k> *>(dBG)->process_edges(
+                        static_cast<Kmer_SPMC_Iterator<k + 1> *>(params.parser),
+                        params.thread_id);
+                    // 将 void* 类型的指针 dBG 转换为 Read_CdBG_Constructor<k>*
+                    // 类型的指针。这种转换是显式的，编译器会检查转换是否安全。
+                    // 在src/Read_CdBG_Constructor.cpp 调用函数时传入的是this指针,也就是转换是安全的
                 }
                 break;
 
@@ -107,7 +131,7 @@ void Thread_Pool<k>::task(const uint16_t thread_id)
                 break;
             }
 
-
+            //任务做完了就立刻释放线程
             free_thread(thread_id);
         }
     }
@@ -115,13 +139,20 @@ void Thread_Pool<k>::task(const uint16_t thread_id)
 
 
 template <uint16_t k>
+/**
+ * @brief 获取空闲线程
+ *
+ * 从线程池中获取一个处于空闲状态的线程ID。
+ *
+ * @return 空闲线程的ID，若线程池中没有空闲线程，则返回-1
+ */
 uint16_t Thread_Pool<k>::get_idle_thread() const
 {
     int32_t idle_thread_id = -1;
     uint16_t t_id = 0;
 
     while(idle_thread_id == -1)
-        if(task_status[t_id] == Task_Status::pending)
+        if(task_status[t_id] == Task_Status::pending)//如果线程池里的线程有处于空闲状态的线程，就返回该线程的ID
             idle_thread_id = t_id;
         else
             t_id = (t_id + 1) % thread_count;
@@ -157,8 +188,17 @@ void Thread_Pool<k>::assign_output_task(const uint16_t thread_id, const char* co
 
 
 template <uint16_t k>
+/**
+ * @brief 分配读取dBG压缩任务
+ *
+ * 将读取dBG压缩任务分配给线程池中的指定线程。
+ *
+ * @param parser 解析器指针
+ * @param thread_id 线程ID
+ */
 void Thread_Pool<k>::assign_read_dBG_compaction_task(void* const parser, const uint16_t thread_id)
 {
+    //给对应线程分配函数参数
     read_dBG_compaction_params[thread_id] = Read_dBG_Compaction_Params(parser, thread_id);
 
     assign_task(thread_id);
@@ -166,15 +206,22 @@ void Thread_Pool<k>::assign_read_dBG_compaction_task(void* const parser, const u
 
 
 template <uint16_t k>
+/**
+ * @brief 分配任务给指定线程
+ *
+ * 将任务分配给指定线程。如果指定线程不是空闲状态，则输出错误信息并退出程序。
+ *
+ * @param thread_id 线程ID
+ */
 void Thread_Pool<k>::assign_task(const uint16_t thread_id)
-{
+{//如果线程不是处于等待中就报错
     if(task_status[thread_id] != Task_Status::pending)
     {
         std::cerr << "Expected thread " << thread_id << " to be idle while assigning a job, but found it unexpecedly busy. Aborting.\n";
         std::exit(EXIT_FAILURE);
     }
 
-    
+    //表示线程状态是已经分配任务,待处理
     task_status[thread_id] = Task_Status::available;
 }
 
@@ -194,6 +241,11 @@ void Thread_Pool<k>::free_thread(const uint16_t thread_id)
 
 
 template <uint16_t k>
+/**
+ * @brief 等待线程池中的所有任务完成
+ *
+ * 等待线程池中的所有任务执行完成。该函数会阻塞当前线程，直到所有线程的任务状态都为非可用状态。
+ */
 void Thread_Pool<k>::wait_completion() const
 {
     for(uint16_t t_id = 0; t_id < thread_count; ++t_id)

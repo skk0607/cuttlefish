@@ -17,7 +17,10 @@
 #include <algorithm>
 #include <cassert>
 
-
+/*
+定义这个宏表明了我们的意图，即de Bruijn图顶点只使用奇数个k值。
+因此，从(k + 1)-mers(边的顶点)中提取k-mers只会在k为奇数时发生。
+*/
 // Defining this macro states our intent that only odd k-values will be used for de Bruijn graph vertices.
 // Hence, extraction of k-mers from (k + 1)-mers — vertices from edges — will only happen when k is odd.
 #define ODD_K
@@ -41,15 +44,19 @@ private:
     // Bitmask used to clear the most significant DNA base character, i.e. the first base of the k-mer which is at the bits `2k-1 : 2k-2`.
     static constexpr const uint64_t CLEAR_MSN_MASK = ~(uint64_t(0b11) << (2 * ((k - 1) % 32)));
 
-    // The underlying k-mer represented with 2-bit encoding, as a collection of 64-bit integers.
-    // A k-mer `n_{k - 1} ... n_1 n_0` is stored in the array `kmer_data` such that, `kmer_data[0]`
-    // stores the suffix `n_63 ... n_0`, then `kmer_data[1]` stores `n_127 ... n_64`, and so on.
-    // That is, the suffix is aligned with a byte boundary.
-    // TODO: reverse this store-order of the data — i.e. `n_{k - 1}` as the least significant base
-    // (so stored in `kmer_data[0]`) and `n_0` as the most significant base (so stored in `kmer_data[0]`).
-    // This would optimize at least the following:
-    //      i) `from_KMC_data` () — aligning with the KMC data alignment and thus `memcpy` instead of bit-twiddling;
-    //      ii) `operator<` — `memcmp` instead of highest-to-lowest index looping comparison.
+    // The underlying k-mer represented with 2-bit encoding, as a collection of
+    // 64-bit integers. A k-mer `n_{k - 1} ... n_1 n_0` is stored in the array
+    // `kmer_data` such that, `kmer_data[0]` stores the suffix `n_63 ... n_0`,
+    // then `kmer_data[1]` stores `n_127 ... n_64`, and so on. That is, the
+    // suffix is aligned with a byte boundary.
+    // TODO: reverse this store-order of the data — i.e. `n_{k - 1}` as the
+    // least significant base (so stored in `kmer_data[0]`) and `n_0` as the
+    // most significant base (so stored in `kmer_data[0]`). This would optimize
+    // at least the following:
+    //      i) `from_KMC_data` () — aligning with the KMC data alignment and
+    //      thus `memcpy` instead of bit-twiddling; ii) `operator<` — `memcmp`
+    //      instead of highest-to-lowest index looping comparison.
+    // 实际用于存储 kmer的数据,即uint64_t的数组~
     uint64_t kmer_data[NUM_INTS];
 
 
@@ -226,6 +233,14 @@ inline void Kmer<k>::left_shift()
 
 
 template <uint16_t k>
+/**
+ * @brief 将 Kmer 向右移动两位
+ *
+ * 将 Kmer 向右移动两位，通过循环遍历 kmer_data 数组，并将每个元素右移两位。
+ * 同时，将下一个元素的最低两位左移 62 位，然后与前一个元素进行或运算。
+ * 相当于整个数组向右移2位
+ * @tparam k Kmer 的长度
+ */
 inline void Kmer<k>::right_shift()
 {
     constexpr uint64_t mask_LSN = 0b11;
@@ -257,9 +272,27 @@ inline void Kmer<k>::left_shift()
 
 
 template <uint16_t k>
+/**
+ * @brief 将 Kmer 转换为 64 位无符号整数
+ *
+ * 使用给定的种子值，将 Kmer 对象转换为 64 位无符号整数。
+ *
+ * @param seed 种子值
+ *
+ * @return 转换后的 64 位无符号整数
+ */
 inline uint64_t Kmer<k>::to_u64(const uint64_t seed) const
 {
+    //k值向上取整自4的倍数
     constexpr uint16_t NUM_BYTES = (k + 3) / 4;
+    /**
+在C++中，这段代码似乎是为了将一个长度为k的k-mer（即一个由k个核苷酸组成的序列）转换为一个64位无符号整数（uint64_t）。转换过程中使用了XXH3_64bits_withSeed函数，它可能是一个来自某个哈希库（如xxHash）的哈希函数。
+NUM_BYTES计算的是k-mer的字节长度。k-mer通常由DNA序列的核苷酸（A, C, G,
+T）组成，每个核苷酸可以编码为2比特信息（如果使用二进制编码）。因此，理论上一个k-mer需要的比特数是2
+* k。但是，在实际处理中，我们通常使用字节（8比特）作为数据的基本单位。 (k + 3) /
+4这个表达式是用来计算将k-mer转换为字节所需要的最少字节数。由于每个字节包含8比特，所以每个k-mer需要的字节数应该是2
+* k除以8。但是，由于我们不能有“部分字节”，所以我们需要向上取整来确保有足够的空间来存储整个k-mer。 (k + 3) / 4这个计算等同于(k + 7) / 8（因为除以4等于除以8然后乘以2，加上3等于加上7），后者是常见的向上取整到最接近的字节数的技巧。加7然后除以8确保了当k是8的倍数时，结果不会向下取整。然后，结果乘以2（因为k是按比特计算的，而我们需要字节），所以实际上是(k + 7) / 4。但在这个代码中，用了(k + 3) / 4，这实际上是一个简化，因为当k不是4的倍数时，结果仍然是正确的（向上取整到最近的4的倍数），但是当k是4的倍数时，它不会增加额外的字节。这可能是因为k-mer数据已经以某种方式确保了足够的存储，或者这个简化在上下文中是可以接受的。 简而言之，(k + 3) / 4是计算存储k-mer所需的最小字节数的近似值，并向上取整到最近的4的倍数。这种近似在某些情况下可能是可以接受的，尽管更精确的计算可能是(k + 7) / 8然后乘以2（转换为字节）。但需要注意的是，这里的解释假设k-mer的编码是以比特为基础的，并且每个核苷酸编码为2比特。实际实现可能有所不同，所以具体细节可能需要查看Kmer类的其余部分或相关文档。
+     */
     return XXH3_64bits_withSeed(kmer_data, NUM_BYTES, seed);
 }
 
@@ -376,7 +409,7 @@ inline void Kmer<k>::from_prefix(const Kmer<k + 1>& k_plus_1_mer)
     // Note: `Kmer<k>` and `Kmer<k + 1>` always have the same number of words (i.e. `NUM_INTS`) for odd k-values.
     // The only time that they have different numbers of words is when `k` is a multiple of 32. In such cases,
     // a (k + 1)-mer contains just one base in its highest index word, and a k-mer's words are fully packed.
-
+    //先将 k+1 mer 的前 k 位复制到 k-mer->kmer_data 中
     std::memcpy(kmer_data, k_plus_1_mer.kmer_data, NUM_INTS * sizeof(uint64_t));
     right_shift();  // Clear the LSN of the (k + 1)-mer, from the k-mer.
 

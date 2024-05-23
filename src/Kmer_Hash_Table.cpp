@@ -22,16 +22,29 @@ template <uint16_t k, uint8_t BITS_PER_KEY>
 Kmer_Hash_Table<k, BITS_PER_KEY>::Kmer_Hash_Table(const std::string& kmc_db_path): Kmer_Hash_Table(kmc_db_path, Kmer_Container<k>::size(kmc_db_path))
 {}
 
-
+/**
+ * @param 	 kmc_db_path 顶点数据库的路径
+ * @param 	 kmer_count unique_kmer 的 数量
+ * gamma 取最小值 2.00
+ * kmc_db_path 初始化为 第一个参数
+ * kmer_count 输入的顶点集合 unique kmer 数量
+ * hash_table 初始化使用的参数为 kmer_count 表示每个 bucket
+的大小为[0,kmer_count)
+ * 
+ */
 template <uint16_t k, uint8_t BITS_PER_KEY>
-Kmer_Hash_Table<k, BITS_PER_KEY>::Kmer_Hash_Table(const std::string& kmc_db_path, const uint64_t kmer_count):
-    gamma(gamma_min),
-    kmc_db_path(kmc_db_path),
-    kmer_count(kmer_count),
-    hash_table(kmer_count),
-    sparse_lock(kmer_count, lock_count)
-{}
-
+/**
+ * @brief Kmer_Hash_Table 构造函数
+ *
+ * 根据给定的 KMC 数据库路径和 kmer 计数，初始化 Kmer_Hash_Table 对象。
+ *
+ * @param kmc_db_path KMC 数据库路径 "./ceil.cf_V"
+ * @param kmer_count kmer 计数 1462169
+ */
+Kmer_Hash_Table<k, BITS_PER_KEY>::Kmer_Hash_Table(
+    const std::string &kmc_db_path, const uint64_t kmer_count)
+    : gamma(gamma_min), kmc_db_path(kmc_db_path), kmer_count(kmer_count),
+      hash_table(kmer_count), sparse_lock(kmer_count, lock_count) {}
 
 template <uint16_t k, uint8_t BITS_PER_KEY>
 Kmer_Hash_Table<k, BITS_PER_KEY>::Kmer_Hash_Table(const std::string& kmc_db_path, const uint64_t kmer_count, const std::size_t max_memory): Kmer_Hash_Table(kmc_db_path, kmer_count)
@@ -66,9 +79,19 @@ void Kmer_Hash_Table<k, BITS_PER_KEY>::set_gamma(const std::size_t max_memory)
 
 
 template <uint16_t k, uint8_t BITS_PER_KEY>
+/**
+ * @brief 构建最小完美哈希函数
+ *
+ * 根据给定的线程数、工作目录路径和最小完美哈希函数文件路径，构建最小完美哈希函数。
+ *
+ * @param thread_count 线程数
+ * @param working_dir_path 工作目录路径
+ * @param mph_file_path 最小完美哈希函数文件路径
+ */
 void Kmer_Hash_Table<k, BITS_PER_KEY>::build_mph_function(const uint16_t thread_count, const std::string& working_dir_path, const std::string& mph_file_path)
 {
     // The serialized BBHash file (saved from some earlier execution) exists.
+    // 如果存在BBHash文件，则直接加载
     if(!mph_file_path.empty() && file_exists(mph_file_path))
     {
         std::cout << "Found the MPHF at file " << mph_file_path << ".\n";
@@ -81,6 +104,7 @@ void Kmer_Hash_Table<k, BITS_PER_KEY>::build_mph_function(const uint16_t thread_
     else    // No BBHash file name provided, or does not exist. Build one now.
     {
         // Open a container over the k-mer database.
+        // 还没有存储,仅仅是创建 counter
         const Kmer_Container<k> kmer_container(kmc_db_path);
 
         // Build the MPHF.
@@ -194,44 +218,61 @@ void Kmer_Hash_Table<k, BITS_PER_KEY>::remove(const Build_Params& params) const
     }
 }
 
-
 template <uint16_t k, uint8_t BITS_PER_KEY>
-void Kmer_Hash_Table<k, BITS_PER_KEY>::construct(const uint16_t thread_count, const std::string& working_dir_path, const std::string& mph_file_path, const bool save_mph)
-{
-    // std::chrono::high_resolution_clock::time_point t_start = std::chrono::high_resolution_clock::now();
+/**
+ * @brief 构造 Kmer_Hash_Table 对象
+ *
+ * 根据给定的线程数、工作目录路径、MPH 文件路径和是否保存 MPH，构造
+ * Kmer_Hash_Table 对象。
+ * params.thread_count(), logistics.working_dir_path(),
+ * params.mph_file_path(), params.save_mph()
+ * @param thread_count 线程数 
+ * @param working_dir_path 工作目录路径 data/output/
+ * @param mph_file_path MPH 文件路径
+ * @param save_mph 是否保存 MPH
+ */
+void Kmer_Hash_Table<k, BITS_PER_KEY>::construct(
+    const uint16_t thread_count, const std::string &working_dir_path,
+    const std::string &mph_file_path, const bool save_mph) {
+  // std::chrono::high_resolution_clock::time_point t_start =
+  // std::chrono::high_resolution_clock::now();
 
+  std::cout << "Total number of k-mers in the set (KMC database): "
+            << kmer_count << ".\n";
 
-    std::cout << "Total number of k-mers in the set (KMC database): " << kmer_count << ".\n";
+  // Build the minimal perfect hash function.
+  build_mph_function(thread_count, working_dir_path, mph_file_path);
 
+  if (save_mph) // false
+  {
+    save_mph_function(mph_file_path);
+    std::cout << "Saved the hash function at " << mph_file_path << "\n";
+  }
 
-    // Build the minimal perfect hash function.
-    build_mph_function(thread_count, working_dir_path, mph_file_path);
+  const uint64_t total_bits = mph->totalBitSize();
+  std::cout << "\nTotal MPHF size: " << total_bits / (8 * 1024 * 1024)
+            << " MB."
+               " Bits per k-mer: "
+            << static_cast<double>(total_bits) / kmer_count << ".\n";
 
-    if(save_mph)
-    {
-        save_mph_function(mph_file_path);
-        std::cout << "Saved the hash function at " << mph_file_path << "\n";
-    }
+  // Allocate the hash table buckets.
+  hash_table.clear_mem();
+  std::cout << "Allocated hash table buckets for the k-mers. Total size: "
+            << hash_table.bytes() / (1024 * 1024) << " MB.\n";
 
-    const uint64_t total_bits = mph->totalBitSize();
-    std::cout <<    "\nTotal MPHF size: " << total_bits / (8 * 1024 * 1024) << " MB."
-                    " Bits per k-mer: " << static_cast<double>(total_bits) / kmer_count << ".\n";
+  const uint64_t total_mem = (total_bits / 8) + hash_table.bytes(); // in bytes
+  std::cout << "Total memory usage by the hash table: "
+            << total_mem / (1024 * 1024)
+            << " MB."
+               " Bits per k-mer: "
+            << (total_mem * 8.0) / kmer_count << ".\n";
 
-    // Allocate the hash table buckets.
-    hash_table.clear_mem();
-    std::cout << "Allocated hash table buckets for the k-mers. Total size: " <<
-                hash_table.bytes() / (1024 * 1024) << " MB.\n";
-
-    const uint64_t total_mem = (total_bits / 8) + hash_table.bytes();   // in bytes
-    std::cout <<    "Total memory usage by the hash table: " << total_mem / (1024 * 1024)  << " MB."
-                    " Bits per k-mer: " << (total_mem * 8.0) / kmer_count << ".\n";
-
-
-    // std::chrono::high_resolution_clock::time_point t_end = std::chrono::high_resolution_clock::now();
-    // const double elapsed_seconds = std::chrono::duration_cast<std::chrono::duration<double>>(t_end - t_start).count();
-    // std::cout << "Done allocating the hash table. Time taken = " << elapsed_seconds << " seconds.\n";
+  // std::chrono::high_resolution_clock::time_point t_end =
+  // std::chrono::high_resolution_clock::now(); const double elapsed_seconds =
+  // std::chrono::duration_cast<std::chrono::duration<double>>(t_end -
+  // t_start).count(); std::cout << "Done allocating the hash table. Time taken
+  // = " << elapsed_seconds << " seconds.\n";
 }
-
 
 template <uint16_t k, uint8_t BITS_PER_KEY>
 void Kmer_Hash_Table<k, BITS_PER_KEY>::clear()

@@ -70,8 +70,10 @@ private:
     // TODO: Initialize with `std::nullptr`.
     mphf_t* mph = NULL;
 
-    // The buckets collection (raw `State` representations) for the hash table structure.
-    // Keys (`Kmer<k>`) are passed to the MPHF, and the resulting function-value is used as index into the buckets table.
+    // The buckets collection (raw `State` representations) for the hash table
+    // structure. Keys (`Kmer<k>`) are passed to the MPHF, and the resulting
+    // function-value is used as index into the buckets table.
+    // 哈希表的桶
     bitvector_t hash_table;
 
     // Number of locks for mutually exclusive access for threads to the same indices into the bitvector `hash_table`.
@@ -92,12 +94,15 @@ private:
     // at `working_dir_path` to store temporary files. If the MPHF is
     // found present at the file `mph_file_path`, then it is loaded
     // instead.
+    // 使用`thread_count`线程数，在KMC数据库容器`kmer_container`中的k-mers集合上构建最小完美哈希函数`mph`。使用`working_dir_path`目录来存储临时文件。如果MPHF存在于`mph_file_path`文件中，则加载它。
     void build_mph_function(uint16_t thread_count, const std::string& working_dir_path, const std::string& mph_file_path);
 
     // Loads an MPH function from the file at `file_path` into `mph`.
+    // 从文件`file_path`加载一个MPH函数到` MPH `中。
     void load_mph_function(const std::string& file_path);
 
     // Saves the MPH function `mph` into a file at `file_path`.
+    // 将MPH函数` MPH `保存到`file_path`文件中。
     void save_mph_function(const std::string& file_path) const;
 
 
@@ -132,14 +137,17 @@ public:
 
     // Returns the id / number of the bucket in the hash table that is
     // supposed to store value items for the key `kmer`.
+    // 实际就是返回哈希值
     uint64_t bucket_id(const Kmer<k>& kmer) const;
 
     // Returns the hash value of the k-mer `kmer`.
+    // 实际是调用上面的函数
     uint64_t operator()(const Kmer<k>& kmer) const;
 
     // Returns an API to the entry (in the hash table) for a k-mer hashing
     // to the bucket number `bucket_id` of the hash table. The API wraps
     // the hash table position and the state value at that position.
+    // 返回一个API到(哈希表中的)k-mer哈希到哈希表中编号为' bucket_id'的桶。API封装了散列表位置和该位置的状态值。
     Kmer_Hash_Entry_API<BITS_PER_KEY> operator[](uint64_t bucket_id);
 
     // Returns an API to the entry (in the hash table) for the key `kmer`. The API
@@ -147,6 +155,7 @@ public:
     Kmer_Hash_Entry_API<BITS_PER_KEY> operator[](const Kmer<k>& kmer);
 
     // Returns the value (in the hash-table) for the key `kmer`.
+    // 返回键' kmer '的值(在散列表中)。
     const State operator[](const Kmer<k>& kmer) const;
 
     // Returns an API to the entry (in the hash table) for the key `kmer`. The API
@@ -162,14 +171,17 @@ public:
     // to its wrapped state values, and returns `true` or `false` as per success
     // status. If the corresponding hash table position now contains a different
     // state than the one that had been read earlier, then the update fails.
+    // 尝试根据包装状态值更新API对象的条目(在哈希表中)，并根据成功状态返回`true`或`false`。如果对应的散列表位置现在包含的状态与之前读取的状态不同，则更新失败。
     bool update(Kmer_Hash_Entry_API<BITS_PER_KEY>& api);
 
     // Updates the state-entry in the hash-table that's at the bucket with ID
     // `bucket_id` with the state-value `state`.
+    // 用状态值' state '更新哈希表中ID为' bucket_id '的桶中的状态项。
     void update(uint64_t bucket_id, const State_Read_Space& state);
 
     // Transforms the state-entry in the hash-table that's at the bucket with ID
     // `bucket_id` through the function `transform`.
+    // 通过`transform`函数变换哈希表中ID为`bucket_id`的存储桶中的状态项。
     void update(uint64_t bucket_id, cuttlefish::state_code_t (*transform)(cuttlefish::state_code_t));
     
     // Attempts to update the hash table entries for the API objects `api_1` and
@@ -209,6 +221,15 @@ public:
 
 
 template <uint16_t k, uint8_t BITS_PER_KEY>
+/**
+ * @brief 获取桶的ID
+ *
+ * 根据给定的 Kmer 序列，获取其在哈希表中的hash值
+ *
+ * @param kmer Kmer 序列
+ *
+ * @return 桶的ID
+ */
 inline uint64_t Kmer_Hash_Table<k, BITS_PER_KEY>::bucket_id(const Kmer<k>& kmer) const
 {
     return mph->lookup(kmer);
@@ -216,6 +237,15 @@ inline uint64_t Kmer_Hash_Table<k, BITS_PER_KEY>::bucket_id(const Kmer<k>& kmer)
 
 
 template <uint16_t k, uint8_t BITS_PER_KEY>
+/**
+ * @brief 计算 Kmer 的哈希值
+ *
+ * 根据给定的 Kmer 对象，计算其哈希值，并返回对应的桶编号。
+ *
+ * @param kmer Kmer 对象
+ *
+ * @return Kmer 的哈希值
+ */
 inline uint64_t Kmer_Hash_Table<k, BITS_PER_KEY>::operator()(const Kmer<k>& kmer) const
 {
     return bucket_id(kmer);
@@ -223,9 +253,19 @@ inline uint64_t Kmer_Hash_Table<k, BITS_PER_KEY>::operator()(const Kmer<k>& kmer
 
 
 template <uint16_t k, uint8_t BITS_PER_KEY>
+/**
+ * @brief 重载 [] 运算符，用于访问指定桶的 Kmer_Hash_Entry_API 对象
+ *
+ * 根据给定的桶 ID，通过加锁和解锁操作，安全地访问哈希表中的指定桶，并返回对应的 Kmer_Hash_Entry_API 对象。
+ * 加锁是因为底层的hash_table在 i!=j 的时候没有提供线程安全
+ * 但是ts_vector不是自己提供了线程安全吗?
+ * @param bucket_id 桶 ID
+ *
+ * @return 对应的 Kmer_Hash_Entry_API 对象
+ */
 inline Kmer_Hash_Entry_API<BITS_PER_KEY> Kmer_Hash_Table<k, BITS_PER_KEY>::operator[](const uint64_t bucket_id)
 {
-    sparse_lock.lock(bucket_id);
+    sparse_lock.lock(bucket_id);//端点的hash值 >> 每个锁的碱基数量 索引对应的锁
     const Kmer_Hash_Entry_API<BITS_PER_KEY> r(hash_table[bucket_id]);
     sparse_lock.unlock(bucket_id);
     
@@ -268,6 +308,15 @@ inline Kmer_Hash_Entry_API<BITS_PER_KEY> Kmer_Hash_Table<k, BITS_PER_KEY>::at(co
 
 
 template <uint16_t k, uint8_t BITS_PER_KEY>
+/**
+ * @brief 更新 Kmer 哈希表项
+ *
+ * 使用给定的 Kmer 哈希表 API 更新哈希表中的项。
+ *
+ * @param api Kmer 哈希表 API 引用
+ *
+ * @return 如果更新成功，返回 true；否则返回 false
+ */
 inline bool Kmer_Hash_Table<k, BITS_PER_KEY>::update(Kmer_Hash_Entry_API<BITS_PER_KEY>& api)
 {
     // const auto it = &(api.bv_entry);
@@ -279,20 +328,31 @@ inline bool Kmer_Hash_Table<k, BITS_PER_KEY>::update(Kmer_Hash_Entry_API<BITS_PE
     // }
     // locks_[lidx].unlock();
     // return success;
-
+    //api.bv_entry 是一个对象，& 是取地址运算符，它返回 api.bv_entry 对象的地址。
+    // 在 std::distance 函数中，这个地址被转换为一个迭代器。这通常意味着 api.bv_entry 是 hash_table 容器中的一个元素。
+    // 计算从 hash_table 容器开始位置到 api.bv_entry 对象地址之间的元素数量差。
     const uint64_t bucket = std::distance(hash_table.begin(), &(api.bv_entry));
-
+    // 哈希entry与begin()的偏移量 >> lg_per_lock_range 得到该entry 对应锁数组里的索引
     sparse_lock.lock(bucket);
+    // 实际是返回state_read的code
     const bool success = (api.bv_entry == api.get_read_state());
-    if(success)
+    if(success)//说明api的bv_entry = state_read,使用state_更新bv_entry
         api.bv_entry = api.get_current_state();
     sparse_lock.unlock(bucket);
-    
+    // api.bv_entry != api.get_read_state() 会一直循环
     return success;
 }
 
 
 template <uint16_t k, uint8_t BITS_PER_KEY>
+/**
+ * @brief 更新哈希表中的状态
+ *
+ * 在指定的桶中更新哈希表的状态。使用稀疏锁保护哈希表的访问。
+ *
+ * @param bucket_id 桶的标识符
+ * @param state 状态读取空间对象
+ */
 inline void Kmer_Hash_Table<k, BITS_PER_KEY>::update(const uint64_t bucket_id, const State_Read_Space& state)
 {
     sparse_lock.lock(bucket_id);
@@ -302,6 +362,14 @@ inline void Kmer_Hash_Table<k, BITS_PER_KEY>::update(const uint64_t bucket_id, c
 
 
 template <uint16_t k, uint8_t BITS_PER_KEY>
+/**
+ * @brief 更新 Kmer 哈希表中的指定桶
+ *
+ * 使用给定的状态转换函数更新 Kmer 哈希表中指定桶的值。
+ *
+ * @param bucket_id 桶的标识符
+ * @param transform 状态转换函数指针，用于更新桶的值
+ */
 inline void Kmer_Hash_Table<k, BITS_PER_KEY>::update(const uint64_t bucket_id, cuttlefish::state_code_t (* const transform)(cuttlefish::state_code_t))
 {
     sparse_lock.lock(bucket_id);

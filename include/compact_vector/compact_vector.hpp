@@ -479,6 +479,17 @@ public:
   typedef size_t                                size_type;
   typedef W                                     word_type;
 
+  /**
+   * @brief ts_vector 构造函数
+   *
+   * 使用给定的位数、大小和分配器初始化 ts_vector 对象。
+   *
+   * @param b 位数
+   * @param s 大小
+   * @param allocator 分配器，默认为默认分配器
+   *
+   * @throw std::out_of_range 当位数大于可用位数时，抛出异常
+   */
   ts_vector(unsigned b, size_t s, Allocator allocator = Allocator())
     : super(b, s, allocator)
   {

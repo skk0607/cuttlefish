@@ -9,13 +9,15 @@
 #include "Kmer_Hash_Table.hpp"
 
 #include <cstdint>
+#include <iostream>
 
 
-// A class denoting an instance of a vertex. It's "directed" in the sense that the k-mer
-// observed for the vertex is in a particular orientation — although a vertex `v` has an
-// unambiguous canonical k-mer `v_hat`, the vertex can be observed in two different k-mer
-// forms: `v_hat` and `{v_hat}_bar` — the class keeps track of the particular k-mer form
-// observed for the vertex instance.
+// A class denoting an instance of a vertex. It's "directed" in the sense that
+// the k-mer observed for the vertex is in a particular orientation — although a
+// vertex `v` has an unambiguous canonical k-mer `v_hat`, the vertex can be
+// observed in two different k-mer forms: `v_hat` and `{v_hat}_bar` — the class
+// keeps track of the particular k-mer form observed for the vertex instance.
+// 表示顶点实例的类。从某种意义上说，它是“有向的”，因为顶点观察到的k-mer具有特定的方向——尽管顶点`v`具有明确的标准k-mer `v_hat`，但该顶点可以观察到两种不同的k-mer形式:`v_hat`和`{v_hat}_bar`——该类跟踪顶点实例观察到的特定k-mer形式。
 template <uint16_t k>
 class Directed_Vertex
 {
@@ -96,16 +98,33 @@ public:
 
 
 template <uint16_t k>
+/**
+ * @brief 初始化有向顶点
+ *
+ * 使用给定的 Kmer 哈希表初始化有向顶点对象。
+ * 这里是比较Kmer和Kmer的反向互补,然后选择1个较小的存入当前成员变量h中
+ * @param hash Kmer 哈希表引用
+ */
 inline void Directed_Vertex<k>::init(const Kmer_Hash_Table<k, cuttlefish::BITS_PER_READ_KMER>& hash)
 {
     kmer_bar_.as_reverse_complement(kmer_);
     kmer_hat_ptr = Kmer<k>::canonical(kmer_, kmer_bar_);
-
+    // 计算canonical的hash值,然后存入对象的属性中
+    // TODO: 是否存入了hash表?
     h = hash(*kmer_hat_ptr);
+    std::cout<<kmer_.string_label()<<"的hash值是"<<h<<std::endl;
 }
 
 
 template <uint16_t k>
+/**
+ * @brief 构造有向顶点
+ *
+ * 使用给定的 Kmer 和 Kmer 哈希表构造有向顶点对象。
+ *
+ * @param kmer Kmer 对象
+ * @param hash Kmer 哈希表引用
+ */
 inline Directed_Vertex<k>::Directed_Vertex(const Kmer<k>& kmer, const Kmer_Hash_Table<k, cuttlefish::BITS_PER_READ_KMER>& hash):
     kmer_(kmer)
 {
@@ -150,10 +169,18 @@ inline void Directed_Vertex<k>::from_kmer(const Kmer<k>& v, const Kmer_Hash_Tabl
 
 
 template <uint16_t k>
+/**
+ * @brief 根据前缀生成有向顶点的表示
+ *
+ * 使用给定的长度为 k+1 的 Kmer 对象和 Kmer 哈希表，生成有向顶点的表示。
+ *
+ * @param e 长度为 k+1 的 Kmer 对象
+ * @param hash Kmer 哈希表
+ */
 inline void Directed_Vertex<k>::from_prefix(const Kmer<k + 1>& e, const Kmer_Hash_Table<k, cuttlefish::BITS_PER_READ_KMER>& hash)
 {
-    kmer_.from_prefix(e);
-    init(hash);
+    kmer_.from_prefix(e);//根据边获取前缀存储在成员变量kmer_中
+    init(hash);//利用from_prefix获取的成员变量信息
 }
 
 
@@ -204,6 +231,14 @@ inline void Directed_Vertex<k>::roll_forward(const cuttlefish::base_t b, const K
 
 
 template <uint16_t k>
+/**
+ * @brief 返回有向顶点的出口边类型
+ *
+ * 判断当前有向顶点的kmer指针是否等于kmer_hat_ptr指针，根据判断结果返回出口边类型。
+ * 如果等于，则返回cuttlefish::side_t::back，否则返回cuttlefish::side_t::front。
+ *
+ * @return 出口边类型，为cuttlefish::side_t枚举类型
+ */
 inline cuttlefish::side_t Directed_Vertex<k>::exit_side() const
 {
     return &kmer_ == kmer_hat_ptr ? cuttlefish::side_t::back : cuttlefish::side_t::front;

@@ -6,10 +6,18 @@
 
 
 template <uint16_t k>
+/**
+ * @brief Kmer_Container 构造函数
+ *
+ * 使用给定的 KMC 数据库文件路径创建 Kmer_Container 对象。
+ *
+ * @param kmc_file_path KMC 数据库文件路径
+ */
 Kmer_Container<k>::Kmer_Container(const std::string& kmc_file_path):
     kmc_file_path(kmc_file_path)
 {
     CKMC_DB kmer_database;
+    // 打开文件`.kmc_pre` & `.kmc_suf '，并将KMC DB参数读取到RAM。
     if(!kmer_database.read_parameters(kmc_file_path))
     {
         std::cout << "Error opening KMC database files with prefix " << kmc_file_path << ". Aborting.\n";
@@ -88,6 +96,15 @@ void Kmer_Container<k>::remove(const std::string& kmc_db_path)
 
 
 template <uint16_t k>
+/**
+ * @brief 获取 KMC 数据库大小
+ *
+ * 根据给定的 KMC 数据库前缀，计算 KMC 数据库的大小（以字节为单位）。
+ *
+ * @param kmc_db_prefix KMC 数据库前缀
+ *
+ * @return 返回 KMC 数据库的大小（以字节为单位）
+ */
 std::size_t Kmer_Container<k>::database_size(const std::string& kmc_db_prefix)
 {
     const std::string kmc_pref_file(kmc_db_prefix + ".kmc_pre");
@@ -128,6 +145,15 @@ std::size_t Kmer_Container<k>::database_size(const std::string& kmc_db_prefix)
 
 
 template <uint16_t k>
+/**
+ * @brief 返回 SPMC 迭代器的起始位置
+ *
+ * 为给定的消费者数量返回 SPMC（Single Producer Multiple Consumer）迭代器的起始位置。
+ *
+ * @param consumer_count 消费者数量
+ *
+ * @return SPMC 迭代器的起始位置
+ */
 typename Kmer_Container<k>::spmc_iterator Kmer_Container<k>::spmc_begin(const size_t consumer_count) const
 {
     return spmc_iterator(this, consumer_count);   

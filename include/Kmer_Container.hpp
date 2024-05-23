@@ -16,6 +16,7 @@ template <uint16_t k> class Kmer_Buffered_Iterator;
 template <uint16_t k> class Kmer_SPMC_Iterator;
 
 // Wrapper class for KMC databases on disk.
+// 磁盘上KMC数据库的包装类。
 template <uint16_t k>
 class Kmer_Container
 {
@@ -25,8 +26,9 @@ class Kmer_Container
 
 
 private:
-
+    // KMC database file 路径
     const std::string kmc_file_path;  // Name of the KMC database.
+    // KMC 数据库 的元信息
     CKMCFileInfo kmer_database_info; // Meta-information of the database.
 
 

@@ -110,6 +110,15 @@ bool CKMC_DB::OpenForListing(const std::string &file_name)
 // IN	: file_name - the name of kmer_counter's output
 // RET	: true		- if successful
 //----------------------------------------------------------------------------------
+/**
+ * @brief 为 Cuttlefish 列表打开数据库
+ *
+ * 根据给定的文件名，打开数据库文件以进行 Cuttlefish 列表操作。
+ *
+ * @param file_name 文件名
+ *
+ * @return 成功返回 true，失败返回 false
+ */
 bool CKMC_DB::open_for_cuttlefish_listing(const std::string& file_name)
 {
 	uint64 size;
@@ -150,6 +159,15 @@ bool CKMC_DB::open_for_cuttlefish_listing(const std::string& file_name)
 // IN	: file_name - the name of kmer_counter's output
 // RET	: true		- if successful
 //----------------------------------------------------------------------------------
+/**
+ * @brief 读取参数
+ *
+ * 从指定的文件中读取参数。
+ *
+ * @param file_name 文件名
+ *
+ * @return 读取成功返回 true，否则返回 false
+ */
 bool CKMC_DB::read_parameters(const std::string& file_name)
 {
 	uint64 size;

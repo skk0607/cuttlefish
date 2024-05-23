@@ -17,6 +17,13 @@
 
 
 // Data required by the consumers to correctly parse raw binary k-mers.
+/**
+ * @brief 消费者数据结构体
+ *
+ * 该结构体用于存储消费者数据，包括k-mer的后缀缓冲区、当前缓冲区中的k-mer数量、已解析的k-mer数量、k-mer的前缀缓冲区以及指向要开始解析的k-mer前缀的迭代器。
+ *
+ * 结构体使用L1缓存行大小对齐，以避免false-sharing。
+ */
 struct alignas(L1_CACHE_LINE_SIZE)
     Consumer_Data
 {
@@ -144,16 +151,28 @@ public:
 
 
 template <uint16_t k>
+/**
+ * @brief Kmer_SPMC_Iterator 构造函数
+ *
+ * 构造一个 Kmer_SPMC_Iterator 对象，用于迭代 Kmer_Container 中的 k-mer 序列。
+ *
+ * @param kmer_container 指向 Kmer_Container 的常量指针
+ * @param consumer_count 消费者数量
+ * @param at_begin 是否从迭代器开始位置构造
+ * @param at_end 是否从迭代器结束位置构造
+ */
 inline Kmer_SPMC_Iterator<k>::Kmer_SPMC_Iterator(const Kmer_Container<k>* const kmer_container, const size_t consumer_count, const bool at_begin, const bool at_end):
     kmer_container(kmer_container),
     kmer_count{kmer_container->size()},
     consumer_count{consumer_count},
     kmers_read{at_end ? kmer_count : 0}
 {
-    if(!(at_begin ^ at_end))
-    {
-        std::cerr << "Invalid position provided for SPMC k-mer iterator construction. Aborting.\n";
-        std::exit(EXIT_FAILURE);
+  // ^: 不同为1相同为0
+  // 检查at_begin和at_end是否只有一个为真
+  if (!(at_begin ^ at_end)) {
+    std::cerr << "Invalid position provided for SPMC k-mer iterator "
+                 "construction. Aborting.\n";
+    std::exit(EXIT_FAILURE);
     }
 }
 
@@ -183,6 +202,13 @@ inline Kmer_SPMC_Iterator<k>::~Kmer_SPMC_Iterator()
 
 
 template <uint16_t k>
+/**
+ * @brief 打开 k-mer 数据库
+ *
+ * 打开指定的 k-mer 数据库文件，并进行初始化操作。
+ *
+ * @param db_path 数据库文件路径
+ */
 inline void Kmer_SPMC_Iterator<k>::open_kmer_database(const std::string& db_path)
 {
     if(!kmer_database.open_for_cuttlefish_listing(db_path))
@@ -205,16 +231,29 @@ inline void Kmer_SPMC_Iterator<k>::close_kmer_database()
 
 
 template <uint16_t k>
+/**
+ * @brief 启动生产函数
+ *
+ * 如果已经启动，则直接返回。
+ * 初始化缓冲区以及解析数据结构。
+ *
+ * @tparam k Kmer 的长度
+ */
 inline void Kmer_SPMC_Iterator<k>::launch_production()
 {
+    //生产者线程是否已经初始化
     if(launched())
         return;
 
     // Initialize the buffers and the parsing data structures.
-
+    // 初始化缓冲区和解析数据结构。
+    // 每个消费者线程创建对应状态,构成数组
+    // 线程的状态读取需要从内存读取,不允许优化
     task_status = new volatile Task_Status[consumer_count];
-
+    // 将consumer vector的容量设置为consumer_count
+    // 里面为空值
     consumer.resize(consumer_count);
+    // 初始化consumer 的 消费者数据
     for(size_t id = 0; id < consumer_count; ++id)
     {
         auto& consumer_state = consumer[id];
@@ -227,9 +266,15 @@ inline void Kmer_SPMC_Iterator<k>::launch_production()
     }
 
     // Open the underlying k-mer database.
+    // 打开对应的 pre 和 suf 文件
     open_kmer_database(kmer_container->container_location());
 
     // Launch the background disk-reader thread.
+    // 启动后台磁盘读取线程。
+    // new std::thread([this]() { read_raw_kmers(); })
+    // 创建了一个新的线程对象，该线程对象将执行上述的lambda表达式，即调用read_raw_kmers()函数。
+    // reset:std::shared_ptr 的所有权转移到新的指针上，同时释放原有指针所管理的资源。
+    // reader指针指向 new thread,同时释放原来指向的线程对象
     reader.reset(
         new std::thread([this]()
             {
@@ -239,17 +284,29 @@ inline void Kmer_SPMC_Iterator<k>::launch_production()
     );
 }
 
-
 template <uint16_t k>
-inline bool Kmer_SPMC_Iterator<k>::launched() const
-{
-    return reader != nullptr;
+/**
+ * @brief 判断是否已启动迭代器
+ *
+ * 判断迭代器是否已启动。如果迭代器已启动，则返回 true；否则返回 false。
+ * return 生产者线程 != nullptr
+ * @return 如果迭代器已启动，则返回 true；否则返回 false
+ */
+inline bool Kmer_SPMC_Iterator<k>::launched() const {
+  return reader != nullptr;
 }
 
-
 template <uint16_t k>
+/**
+ * @brief 读取原始 k-mer
+ *
+ * 从 k-mer 数据库中读取原始 k-mer 数据，并将其存储到消费者的缓冲区中。
+ *
+ * @tparam k k-mer 的长度
+ */
 inline void Kmer_SPMC_Iterator<k>::read_raw_kmers()
 {
+    // 检查是否到达文件末尾
     while(!kmer_database.Eof())
     {
         const size_t consumer_id = get_idle_consumer();
@@ -257,7 +314,7 @@ inline void Kmer_SPMC_Iterator<k>::read_raw_kmers()
 
         consumer_state.kmers_available = kmer_database.read_raw_suffixes(consumer_state.suff_buf, consumer_state.pref_buf, BUF_SZ_PER_CONSUMER);
         consumer_state.pref_it = consumer_state.pref_buf.begin();
-
+//1462169
         if(!consumer_state.kmers_available)
         {
             std::cerr << "Error reading the suffix file. Aborting.\n";
@@ -273,16 +330,23 @@ inline void Kmer_SPMC_Iterator<k>::read_raw_kmers()
 
 
 template <uint16_t k>
+/**
+ * @brief 获取空闲消费者
+ *
+ * 返回一个空闲的消费者的索引。如果所有消费者都在忙，则执行忙等待直到找到一个空闲的消费者。
+ *
+ * @return 空闲消费者的索引
+ */
 inline size_t Kmer_SPMC_Iterator<k>::get_idle_consumer() const
 {
-    size_t id{0};
-
+    size_t id{0};//定义一个 `size_t` 类型的局部变量 `id` 并初始化为0。这个变量将用于追踪消费者的ID。
+    //从0开始找到一个空闲的消费者
     while(task_status[id] != Task_Status::pending)  // busy-wait
     {
         // id = (id + 1) % consumer_count;
         id++;
         if(id == consumer_count)
-            id = 0;
+            id = 0;//如果到末尾就从头开始
     }
 
     return id;     
@@ -316,10 +380,22 @@ inline void Kmer_SPMC_Iterator<k>::seize_production()
 
 
 template <uint16_t k>
+/**
+ * @brief 获取指定消费者的 Kmer 值
+ *
+ * 根据给定的消费者 ID，从迭代器中获取 Kmer 值，并将其存储在提供的 Kmer 对象中。
+ *
+ * @param consumer_id 消费者 ID
+ * @param kmer 用于存储获取的 Kmer 值的对象
+ *
+ * @return 如果成功获取到 Kmer 值，则返回 true；否则返回 false
+ *
+ * @note 尽可能延迟对 volatile 的访问，因为每次访问都会直接命中实际的内存位置。
+ */
 inline bool Kmer_SPMC_Iterator<k>::value_at(const size_t consumer_id, Kmer<k>& kmer)
 {
-    // TODO: try to delay this `volatile` access as much as possible, as each access directly hits the actual memory location.
-    if(!task_available(consumer_id))
+    // TODO: try to delay this `volatile` access as much as possible, as each access directly hits the actual memory location.尽量延迟这种`volatile`访问，因为每次访问都会直接到达实际的内存位置。
+    if(!task_available(consumer_id))//检查线程的状态是否为available
         return false;
 
     auto& ts = consumer[consumer_id];
@@ -337,6 +413,15 @@ inline bool Kmer_SPMC_Iterator<k>::value_at(const size_t consumer_id, Kmer<k>& k
 
 
 template <uint16_t k>
+/**
+ * @brief 判断两个迭代器是否相等
+ *
+ * 判断当前迭代器与给定的迭代器 `rhs` 是否相等。如果两个迭代器的 `kmer_container` 和 `kmers_read` 成员变量都相等，则返回 `true`；否则返回 `false`。
+ *
+ * @param rhs 要比较的另一个迭代器
+ *
+ * @return 如果两个迭代器相等，则返回 `true`；否则返回 `false`
+ */
 inline bool Kmer_SPMC_Iterator<k>::operator==(const iterator& rhs) const
 {
     return kmer_container == rhs.kmer_container && kmers_read == rhs.kmers_read;
@@ -351,6 +436,15 @@ inline bool Kmer_SPMC_Iterator<k>::operator!=(const iterator& rhs) const
 
 
 template <uint16_t k>
+/**
+ * @brief 判断是否还有任务需要处理
+ *
+ * 根据给定的消费者ID，判断该消费者是否还有任务需要处理。
+ *
+ * @param consumer_id 消费者ID
+ *
+ * @return 如果还有任务需要处理，返回true；否则返回false
+ */
 inline bool Kmer_SPMC_Iterator<k>::tasks_expected(const size_t consumer_id) const
 {
     return task_status[consumer_id] != Task_Status::no_more;
@@ -358,6 +452,15 @@ inline bool Kmer_SPMC_Iterator<k>::tasks_expected(const size_t consumer_id) cons
 
 
 template <uint16_t k>
+/**
+ * @brief 判断任务是否可用
+ *
+ * 根据给定的消费者ID，判断该消费者是否有一个可用的任务。
+ *
+ * @param consumer_id 消费者ID
+ *
+ * @return 如果任务可用，返回true；否则返回false
+ */
 inline bool Kmer_SPMC_Iterator<k>::task_available(const size_t consumer_id) const
 {
     return task_status[consumer_id] == Task_Status::available;
