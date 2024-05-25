@@ -246,6 +246,7 @@ inline void Kmer<k>::right_shift()
     constexpr uint64_t mask_LSN = 0b11;
 
     for(uint16_t idx = 0; idx < NUM_INTS - 1; ++idx)
+    //idx >> 2位,然后idx+1 取最后2位 << 62位
         kmer_data[idx] = (kmer_data[idx] >> 2) | ((kmer_data[idx + 1] & mask_LSN) << 62);
 
     kmer_data[NUM_INTS - 1] >>= 2;
@@ -261,8 +262,9 @@ inline void Kmer<k>::left_shift()
     if constexpr(B != 0)
     {
         constexpr uint16_t num_bit_shift = 2 * B;
+        // if B = 1, mask_MSNs = 11 << 62
         constexpr uint64_t mask_MSNs = ((static_cast<uint64_t>(1) << num_bit_shift) - 1) << (64 - num_bit_shift);
-
+        // idx的末尾62 bit 和 idx-1 的最高 2bit拼接
         for(uint16_t idx = NUM_INTS - 1; idx > 0; --idx)
             kmer_data[idx] = (kmer_data[idx] << num_bit_shift) | ((kmer_data[idx - 1] & mask_MSNs) >> (64 - num_bit_shift));
 
@@ -437,6 +439,13 @@ inline void Kmer<k>::from_suffix(const Kmer<k + 1>& k_plus_1_mer)
 
 
 template <uint16_t k>
+/**
+ * @brief 返回 Kmer 的反向互补序列
+ *
+ * 生成当前 Kmer 对象的反向互补序列，并返回一个新的 Kmer 对象。
+ *
+ * @return 返回一个包含反向互补序列的 Kmer 对象
+ */
 inline Kmer<k> Kmer<k>::reverse_complement() const
 {
     Kmer<k> rev_compl;
@@ -447,6 +456,14 @@ inline Kmer<k> Kmer<k>::reverse_complement() const
 
 
 template <uint16_t k>
+/**
+ * @brief 获取另一个Kmer的反向互补序列
+ *
+ * 将给定的Kmer对象的反向互补序列赋值给当前Kmer对象。
+ * 在处理过程中，每次处理一个字节而不是64位整数。
+ *
+ * @param other 另一个Kmer对象
+ */
 inline void Kmer<k>::as_reverse_complement(const Kmer<k>& other)
 {
     // Working with bytes instead of 64-bit words at a time.
@@ -514,6 +531,13 @@ inline bool Kmer<k>::operator!=(const Kmer<k>& rhs) const
 
 
 template <uint16_t k>
+/**
+ * @brief 获取Kmer对象的第一个碱基
+ *
+ * 获取Kmer对象的第一个碱基，即最高位的碱基。
+ *
+ * @return DNA::Base Kmer对象的第一个碱基
+ */
 inline DNA::Base Kmer<k>::front() const
 {
     // Relative index of the most significant nucleotide in it's 64-bit word.
@@ -544,6 +568,14 @@ inline bool Kmer<k>::in_forward(const Kmer<k>& kmer_hat) const
 
 
 template <uint16_t k>
+/**
+ * @brief 滚动到下一个 k-mer
+ *
+ * 根据给定的下一个碱基，将当前 k-mer 滚动到下一个 k-mer，并计算其反向互补序列。
+ *
+ * @param next_base 下一个碱基
+ * @param rev_compl 反向互补序列
+ */
 inline void Kmer<k>::roll_to_next_kmer(const char next_base, Kmer<k>& rev_compl)
 {
     const DNA::Base mapped_base = DNA_Utility::map_base(next_base);
@@ -553,6 +585,14 @@ inline void Kmer<k>::roll_to_next_kmer(const char next_base, Kmer<k>& rev_compl)
 
 
 template <uint16_t k>
+/**
+ * @brief 将当前Kmer滚动到下一个Kmer
+ *
+ * 将当前Kmer滚动到下一个Kmer，并更新其反向互补序列。
+ *
+ * @param base DNA碱基
+ * @param rev_compl 反向互补序列的引用
+ */
 inline void Kmer<k>::roll_to_next_kmer(const DNA::Base base, Kmer<k>& rev_compl)
 {
     // Logically, since a left shift moves the MSN out of the length `k` boundary, the clearing of the base
@@ -560,8 +600,9 @@ inline void Kmer<k>::roll_to_next_kmer(const DNA::Base base, Kmer<k>& rev_compl)
     // out this base breaks the consistency of the hashing.
     kmer_data[NUM_INTS - 1] &= CLEAR_MSN_MASK;
     left_shift();
+    //整体左移2bit,然后 | base
     kmer_data[0] |= base;
-
+    //整体右移2bit,然后 | base
     rev_compl.right_shift();
     rev_compl.kmer_data[NUM_INTS - 1] |= (static_cast<uint64_t>(DNA_Utility::complement(base)) << (2 * ((k - 1) & 31)));
 }
@@ -668,10 +709,20 @@ inline std::string Kmer<k>::string_label() const
 
 template <uint16_t k>
 template <typename T_container_>
+/**
+ * @brief 获取 Kmer 的标签
+ *
+ * 从 Kmer 对象中获取标签，并将其存储到给定的容器中。
+ *
+ * @param label 存储标签的容器引用
+ */
 inline void Kmer<k>::get_label(T_container_& label) const
 {
-    label.resize(k);
-
+    label.resize(k);//将大小调整为k
+    /**
+    由于DNA序列的每个碱基通常使用2位表示（即4种碱基：A, T, C,
+    G），所以一个64位的uint64_t可以存储32个碱基的信息。packed_word_count表示可以完全使用64位单词来存储的碱基对的数量。
+     */
     constexpr uint16_t packed_word_count = k / 32;
 
     // Get the fully packed words' representations.

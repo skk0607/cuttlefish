@@ -63,6 +63,7 @@ void Read_CdBG_Constructor<k>::compute_DFA_states(const std::string& edge_db_pat
         distribute_states_computation(&edge_parser, thread_pool);
 
         // Wait for the edges to be depleted from the database.
+        // 等待数据库中的边缘耗尽。
         edge_parser.seize_production();
 
         // Wait for the consumer threads to finish parsing and processing the edges.
@@ -97,11 +98,17 @@ template <uint16_t k>
  */
 void Read_CdBG_Constructor<k>::distribute_states_computation(Kmer_SPMC_Iterator<k + 1>* const edge_parser, Thread_Pool<k>& thread_pool)
 {
+    // 获取线程池中的线程数量
     const uint16_t thread_count = params.thread_count();
 
+    // 遍历所有线程
     for(uint16_t t_id = 0; t_id < thread_count; ++t_id)
     {
+        // 获取空闲的线程ID
         const uint16_t idle_thread_id = thread_pool.get_idle_thread();
+        // 将读取压缩dBG的任务分配给空闲的线程
+        // 每个线程都是同样的Kmer_SPMC_Iterator<k + 1>
+        // 这里本质的工作是让对应线程的状态改为available
         thread_pool.assign_read_dBG_compaction_task(edge_parser, idle_thread_id);
     }
 }
@@ -146,11 +153,11 @@ void Read_CdBG_Constructor<k>::process_cdbg_edges(Kmer_SPMC_Iterator<k + 1>* con
     cuttlefish::edge_encoding_t e_u_old, e_u_new;   // Edges incident to some particular side of a vertex `u`, before and after the addition of a new edge.
     cuttlefish::edge_encoding_t e_v_old, e_v_new;   // Edges incident to some particular side of a vertex `v`, before and after the addition of a new edge.
 */
-
+    printf("当前正在处理数据的消费者线程是%d\n",thread_id);
     uint64_t edge_count = 0;    // Number of edges processed by this thread. 该线程处理的边数。
     uint64_t progress = 0;  // Number of edges processed by the thread; is reset at reaching 1% of its approximate workload. 线程处理的边数;重置为其近似工作量的1%。
 
-    //存在线程不是在 busy
+    //存在线程不是在 no_more
     while (edge_parser->tasks_expected(thread_id))
       //每次只读1个 kmer,如果当前线程读过的kmer = 所能读的最大kmer则 else
         if(edge_parser->value_at(thread_id, e.e()))

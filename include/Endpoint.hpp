@@ -184,6 +184,15 @@ inline cuttlefish::edge_encoding_t Endpoint<k>::exit_edge(const Kmer<k + 1>& e) 
 
 
 template <uint16_t k>
+/**
+ * @brief 获取入口边的编码
+ *
+ * 根据给定的 k-mer，获取 Endpoint 的入口边的编码。
+ *
+ * @param e k-mer 对象
+ *
+ * @return 入口边的编码
+ */
 inline cuttlefish::edge_encoding_t Endpoint<k>::entrance_edge(const Kmer<k + 1>& e) const
 {
     return DNA_Utility::map_extended_base(s == cuttlefish::side_t::front ?

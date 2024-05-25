@@ -111,7 +111,7 @@ void Read_CdBG<k>::construct()
 #ifdef CF_DEVELOP_MODE
     if(params.edge_db_path().empty())
 #endif
-    Kmer_Container<k + 1>::remove(logistics.edge_db_path());
+    Kmer_Container<k + 1>::remove(logistics.edge_db_path());//删除边的pre和suf两个文件
     
     std::chrono::high_resolution_clock::time_point t_dfa = std::chrono::high_resolution_clock::now();
     std::cout << "Computed the states of the automata. Time taken = " << std::chrono::duration_cast<std::chrono::duration<double>>(t_dfa - t_mphf).count() << " seconds.\n";
@@ -210,23 +210,29 @@ template <uint16_t k>
  */
 void Read_CdBG<k>::compute_DFA_states()
 {
+    // 构造函数,里面没有特别举动
     Read_CdBG_Constructor<k> cdBg_constructor(params, *hash_table);
     
     cdBg_constructor.compute_DFA_states(logistics.edge_db_path());
-
+    // 添加点的数量和边的数量到dbg_info中
     dbg_info.add_basic_info(cdBg_constructor);
 }
 
-
 template <uint16_t k>
-void Read_CdBG<k>::extract_maximal_unitigs()
-{
-    Read_CdBG_Extractor<k> cdBg_extractor(params, *hash_table);
+/**
+ * @brief 提取maximal_unitigs
+ *
+ * 从 Read_CdBG 类型的对象中提取maximal_unitigs，并将其保存到指定路径的输出文件中。
+ *
+ * @tparam k 哈希值大小
+ */
+void Read_CdBG<k>::extract_maximal_unitigs() {
+  Read_CdBG_Extractor<k> cdBg_extractor(params, *hash_table);
 
-    cdBg_extractor.extract_maximal_unitigs(logistics.vertex_db_path(), logistics.output_file_path());
-    dbg_info.add_unipaths_info(cdBg_extractor);
+  cdBg_extractor.extract_maximal_unitigs(logistics.vertex_db_path(),
+                                         logistics.output_file_path());
+  dbg_info.add_unipaths_info(cdBg_extractor);
 }
-
 
 template <uint16_t k>
 /**

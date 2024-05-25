@@ -160,7 +160,8 @@ inline bool Read_CdBG_Constructor<k>::add_incident_edge(const Endpoint<k>& endpo
 {
     // Fetch the hash table entry for the vertex associated to the endpoint.
     // 获取与端点关联的顶点的散列表项。
-    Kmer_Hash_Entry_API<cuttlefish::BITS_PER_READ_KMER> bucket = hash_table[endpoint.hash()];
+    Kmer_Hash_Entry_API<cuttlefish::BITS_PER_READ_KMER> bucket =
+        hash_table[endpoint.hash()];
     // 这里返回的是 state_
     State_Read_Space &state = bucket.get_state();
     // edge_encoding_t = DNA::Extended_Base
@@ -203,36 +204,54 @@ template <uint16_t k>
  * @brief 添加交叉环
  *
  * 向 Read_CdBG_Constructor 的 DFA 中添加与端点关联的交叉环。
- *
+ * 这里是添加 front-back 相连的环
  * @param endpoint 端点信息
  *
  * @return 如果成功添加交叉环，则返回 true；否则返回 false
  */
 inline bool Read_CdBG_Constructor<k>::add_crossing_loop(const Endpoint<k>& endpoint)
 {
-    // Fetch the hash table entry for the DFA of vertex associated to the endpoint.
-    
-    Kmer_Hash_Entry_API<cuttlefish::BITS_PER_READ_KMER> bucket = hash_table[endpoint.hash()];
-    State_Read_Space& state = bucket.get_state();
+  // Fetch the hash table entry for the DFA of vertex associated to the
+  // endpoint. 获取与端点关联的顶点的DFA的散列表项。
+  Kmer_Hash_Entry_API<cuttlefish::BITS_PER_READ_KMER> bucket =
+      hash_table[endpoint.hash()];
+  State_Read_Space &state = bucket.get_state();//state_
 
-    const State_Read_Space state_curr = state;
-
-    if(state.edge_at(cuttlefish::side_t::front) != cuttlefish::edge_encoding_t::N)   // Discard the front-incidence information, if not done already.
-        state.update_edge_at(cuttlefish::side_t::front, cuttlefish::edge_encoding_t::N);
-    
-    if(state.edge_at(cuttlefish::side_t::back) != cuttlefish::edge_encoding_t::N)    // Discard the back-incidence information, if not done already.
-        state.update_edge_at(cuttlefish::side_t::back, cuttlefish::edge_encoding_t::N);
-
-    // We can get away without updating the same value again: see detailed comment in `add_incident_edge`.
-    return state == state_curr ? true : hash_table.update(bucket);
+  const State_Read_Space state_curr = state;
+  // 检查front侧是否已经有边信息，如果有但不是N，则丢弃这个边信息，设置为N。
+  if (state.edge_at(cuttlefish::side_t::front) !=
+      cuttlefish::edge_encoding_t::N) // Discard the front-incidence
+                                      // information, if not done already.
+    state.update_edge_at(cuttlefish::side_t::front,
+                         cuttlefish::edge_encoding_t::N);//更新front的编码为N
+  // 类似地，检查back侧是否已经有边信息，如果有但不是N，则丢弃这个边信息，设置为N。
+  if (state.edge_at(cuttlefish::side_t::back) !=
+      cuttlefish::edge_encoding_t::N) // Discard the back-incidence information,
+                                      // if not done already.
+    state.update_edge_at(cuttlefish::side_t::back,
+                         cuttlefish::edge_encoding_t::N);
+  // 到这里,state 两边side 的 边信息都是N
+  // We can get away without updating the same value again: see detailed comment
+  // in `add_incident_edge`.
+  // 相同的值直接return
+  return state == state_curr ? true : hash_table.update(bucket);
 }
 
 
 template <uint16_t k>
+/**
+ * @brief 添加单侧循环
+ * 如果是环,side信息都更新为N
+ * 将给定的端点添加为一个单侧循环。
+ * 这里添加 front(back)-front(back) 的环
+ * @param endpoint 端点对象
+ *
+ * @return 如果成功添加，则返回true；否则返回false
+ */
 inline bool Read_CdBG_Constructor<k>::add_one_sided_loop(const Endpoint<k>& endpoint)
 {
     // Fetch the hash table entry for the vertex associated to the endpoint.
-
+    // 获取与端点关联的顶点的散列表项。
     Kmer_Hash_Entry_API<cuttlefish::BITS_PER_READ_KMER> bucket = hash_table[endpoint.hash()];
     State_Read_Space& state = bucket.get_state();
 

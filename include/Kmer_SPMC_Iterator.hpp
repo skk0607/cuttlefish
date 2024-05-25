@@ -31,6 +31,7 @@ struct alignas(L1_CACHE_LINE_SIZE)
     uint64_t kmers_available;   // Number of k-mers present in the current buffer.
     uint64_t kmers_parsed;      // Number of k-mers parsed from the current buffers.
     std::vector<std::pair<uint64_t, uint64_t>> pref_buf;    // Buffer for the raw binary prefixes of the k-mers, in the form: <prefix, #corresponding_suffix>
+    // 指向开始解析k-mers的前缀的指针。
     std::vector<std::pair<uint64_t, uint64_t>>::iterator pref_it;   // Pointer to the prefix to start parsing k-mers from.
     // uint64_t pad_[1];           // Padding to avoid false-sharing.
 };
@@ -56,8 +57,8 @@ private:
     uint64_t kmers_read;    // Number of raw k-mers read (off disk) by the iterator.
 
     std::unique_ptr<std::thread> reader{nullptr};   // The thread doing the actual disk-read of the binary data, i.e. the producer thread.
-
-    static constexpr size_t BUF_SZ_PER_CONSUMER = (1 << 24);   // Size of the consumer-specific buffers (in bytes): 16 MB.
+    static constexpr size_t BUF_SZ_PER_CONSUMER = (1 << 10);   // Size of
+    //static constexpr size_t BUF_SZ_PER_CONSUMER = (1 << 24);   // Size of the consumer-specific buffers (in bytes): 16 MB.
 
     std::vector<Consumer_Data> consumer;   // Parsing data required for each consumer.
 
@@ -242,6 +243,7 @@ template <uint16_t k>
 inline void Kmer_SPMC_Iterator<k>::launch_production()
 {
     //生产者线程是否已经初始化
+    //实际就是检查是否已经创建了reader指针
     if(launched())
         return;
 
@@ -262,7 +264,7 @@ inline void Kmer_SPMC_Iterator<k>::launch_production()
         consumer_state.kmers_parsed = 0;
         consumer_state.pref_buf.clear();
         consumer_state.pref_it = consumer_state.pref_buf.begin();
-        task_status[id] = Task_Status::pending;
+        task_status[id] = Task_Status::pending;//等待读取kmer
     }
 
     // Open the underlying k-mer database.
@@ -275,6 +277,7 @@ inline void Kmer_SPMC_Iterator<k>::launch_production()
     // 创建了一个新的线程对象，该线程对象将执行上述的lambda表达式，即调用read_raw_kmers()函数。
     // reset:std::shared_ptr 的所有权转移到新的指针上，同时释放原有指针所管理的资源。
     // reader指针指向 new thread,同时释放原来指向的线程对象
+    // 这里创建线程已经开始读取了
     reader.reset(
         new std::thread([this]()
             {
@@ -309,10 +312,12 @@ inline void Kmer_SPMC_Iterator<k>::read_raw_kmers()
     // 检查是否到达文件末尾
     while(!kmer_database.Eof())
     {
+        // 找到空闲线程
         const size_t consumer_id = get_idle_consumer();
         Consumer_Data& consumer_state = consumer[consumer_id];
-
+        // 这里返回成功读取的kmer个数
         consumer_state.kmers_available = kmer_database.read_raw_suffixes(consumer_state.suff_buf, consumer_state.pref_buf, BUF_SZ_PER_CONSUMER);
+       // printf("生产者线程给予的当前的线程是%lu,读取的kmer个数是%lu\n", consumer_id, consumer_state.kmers_available);
         consumer_state.pref_it = consumer_state.pref_buf.begin();
 //1462169
         if(!consumer_state.kmers_available)
@@ -354,24 +359,32 @@ inline size_t Kmer_SPMC_Iterator<k>::get_idle_consumer() const
 
 
 template <uint16_t k>
+/**
+ * @brief 生产者结束生产
+ *
+ * 等待磁盘读取完成，并等待消费者完成消费，同时通知消费者生产已经结束。
+ * 关闭底层的 k-mer 数据库。
+ */
 inline void Kmer_SPMC_Iterator<k>::seize_production()
 {
     // Wait for the disk-reads to be completed.
-    if(!reader->joinable())
+    if(!reader->joinable())//检查reader是否join
     {
         std::cerr << "Early termination encountered for the database reader thread. Aborting.\n";
         std::exit(EXIT_FAILURE);
     }
-
+    // 等待磁盘读取完成
+    // join() 方法的作用是阻塞当前线程（在示例中是主线程），直到目标线程（在示例中是 t1 线程）完成执行。join() 并不启动线程，它只是等待线程完成：
     reader->join();
 
 
     // Wait for the consumers to finish consumption, and signal them that the means of production have been seized.
+    // 等待消费者完成消费，并向他们发出生产资料已被夺取的信号。
     for(size_t id = 0; id < consumer_count; ++id)
     {
         while(task_status[id] != Task_Status::pending); // busy-wait
         
-        task_status[id] = Task_Status::no_more;
+        task_status[id] = Task_Status::no_more;//等待每个消费者消费完成，然后通知消费者生产已经结束
     }
 
     // Close the underlying k-mer database.
@@ -404,7 +417,7 @@ inline bool Kmer_SPMC_Iterator<k>::value_at(const size_t consumer_id, Kmer<k>& k
         task_status[consumer_id] = Task_Status::pending;
         return false;
     }
-
+  //  printf("consumer_id: %lu\n", consumer_id);
     kmer_database.parse_kmer_buf<k>(ts.pref_it, ts.suff_buf, ts.kmers_parsed * kmer_database.suff_record_size(), kmer);
     ts.kmers_parsed++;
 

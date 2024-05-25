@@ -104,12 +104,31 @@ private:
 public:
 
     // Returns the mapping integer value of the given character `base`.
+    /**
+     * @brief 将碱基映射为DNA::Base类型
+     *
+     * 根据给定的碱基字符，将其映射为DNA::Base类型，并返回对应的值。
+     *
+     * @param base 碱基字符
+     *
+     * @return 映射后的DNA::Base类型值
+     */
+    // 返回给定字符' base '的映射整数值。
     static DNA::Base map_base(const char base)
     {
         return MAPPED_BASE[uint8_t(base)];
     }
 
     // Returns the mapping integer value of the complement of `base`.
+    /**
+     * @brief 互补碱基
+     *
+     * 根据给定的碱基，返回其互补碱基。
+     *
+     * @param base 碱基
+     *
+     * @return 互补碱基
+     */
     static DNA::Base complement(const DNA::Base base)
     {
         return COMPLEMENTED_BASE[base];
@@ -149,6 +168,15 @@ public:
 
     // Returns the mapping `DNA::Base` representation of the
     // `DNA::Extended_Base` representation `extended_base`.
+    /**
+     * @brief 将扩展碱基映射为普通碱基
+     *
+     * 将给定的扩展碱基映射为对应的普通碱基，并返回结果。
+     *
+     * @param extended_base 扩展碱基
+     *
+     * @return 映射后的普通碱基
+     */
     static DNA::Base map_base(const DNA::Extended_Base extended_base)
     {
         return REVERSE_MAPPED_EXTENDED_BASE[static_cast<std::size_t>(extended_base)];

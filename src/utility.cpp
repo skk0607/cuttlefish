@@ -105,21 +105,47 @@ const std::string concat_strings(const std::vector<std::string>& s, const std::s
 }
 
 
+/**
+ * @brief 删除文件
+ *
+ * 删除指定路径下的文件。
+ * std::filesystem 是 C++17 引入的一个库，用于处理文件系统和目录路径。
+ * std::filesystem::remove 函数会尝试删除 file_path 指定的文件或目录。如果删除成功，它会返回 true；如果删除失败（例如，文件不存在或没有删除权限），它会返回 false。
+ * @param file_path 文件路径
+ *
+ * @return 如果删除成功，返回 true；否则返回 false
+ */
 bool remove_file(const std::string& file_path)
 {
     return std::filesystem::remove(file_path);
 }
 
 
+/**
+ * @brief 清空文件内容
+ *
+ * 打开指定路径的文件，并将其内容清空。
+ *
+ * @param file_path 文件路径
+ */
 void clear_file(const std::string& file_path)
 {
+    // 打开文件，以输出和截断模式
+    /**
+    std::ofstream::out: 表示以输出模式打开文件。这是写入文件的默认模式。
+    std::ofstream::trunc: 如果文件已经存在，则将其长度截断为0，即删除其所有内容。如果文件不存在，则创建它。
+    */
     std::ofstream file(file_path.c_str(), std::ofstream::out | std::ofstream::trunc);
+
+    // 判断文件打开是否失败
     if(file.fail())
     {
+        // 输出错误信息并退出程序
         std::cerr << "Error opening file " << file_path << ". Aborting.\n";
         std::exit(EXIT_FAILURE);
     }
 
+    // 关闭文件
     file.close();
 }
 

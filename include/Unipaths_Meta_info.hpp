@@ -75,6 +75,13 @@ public:
 
 
 template <uint16_t k>
+/**
+ * @brief 向Unipaths_Meta_info对象中添加一个最大单元图
+ *
+ * 将一个最大单元图添加到Unipaths_Meta_info对象中，并更新相关的统计信息。
+ *
+ * @param size 单元图的大小
+ */
 inline void Unipaths_Meta_info<k>::add_maximal_unitig(const std::size_t size)
 {
     unipath_count_++;
@@ -94,6 +101,13 @@ inline void Unipaths_Meta_info<k>::add_maximal_unitig(const std::size_t size)
 
 
 template <uint16_t k>
+/**
+ * @brief 添加最大单元组
+ *
+ * 将给定的最大单元组添加到元信息中。
+ *
+ * @param maximal_unitig 最大单元组对象
+ */
 inline void Unipaths_Meta_info<k>::add_maximal_unitig(const Maximal_Unitig_Scratch<k>& maximal_unitig)
 {
     add_maximal_unitig(maximal_unitig.size());

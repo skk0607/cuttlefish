@@ -18,6 +18,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <ostream>
 #include <string>
 
 
@@ -39,6 +40,7 @@ private:
 
     // typedef std::ofstream sink_t;
     typedef Async_Logger_Wrapper sink_t;
+    // maximal unitigs的sink,实际可以理解为1个日志写入器
     Output_Sink<sink_t> output_sink;    // Sink for the output maximal unitigs.
 
     // TODO: give these limits more thoughts, especially their exact impact on the memory usage.
@@ -98,6 +100,7 @@ public:
 
     // Constructs a vertex-extractor object for some compacted read de Bruijn graph, with the required
     // parameters wrapped inside `params`, and uses the Cuttlefish hash table `hash_table`.
+    // 为一些压缩的read de Bruijn图构造一个顶点提取器对象，将所需的参数包装在`params`中，并使用乌贼哈希表`hash_table`。
     Read_CdBG_Extractor(const Build_Params& params, Kmer_Hash_Table<k, cuttlefish::BITS_PER_READ_KMER>& hash_table);
 
     // Extracts the maximal unitigs of the de Bruijn graph with the vertex set at path prefix `vertex_db_path`,
@@ -232,14 +235,25 @@ public:
 
 
 template <uint16_t k>
+/**
+ * @brief 标记顶点
+ *
+ * 在 CdBG 提取器中标记给定的有向顶点。
+ *
+ * @param v 有向顶点对象
+ *
+ * @return 如果顶点已被标记过，则返回 false；否则返回 true
+ */
 inline bool Read_CdBG_Extractor<k>::mark_vertex(const Directed_Vertex<k>& v)
 {
+    //根据标志顶点的hash值获取Entry_API
     Kmer_Hash_Entry_API<cuttlefish::BITS_PER_READ_KMER> bucket = hash_table[v.hash()];
+    //这个桶就是用来找对应state的
     State_Read_Space& state = bucket.get_state();
-
+    //如果两端已经确定了是非分支,则直接返回false
     if(state.is_outputted())
         return false;
-
+    //标记已输出
     state.mark_outputted();
     return hash_table.update(bucket);
 }
@@ -267,75 +281,115 @@ inline void Read_CdBG_Extractor<k>::mark_maximal_unitig(const Maximal_Unitig_Scr
 
 
 template <uint16_t k>
+/**
+ * @brief 提取最大单元图
+ *
+ * 从给定的Kmer中提取最大单元图，并存储到指定的Maximal_Unitig_Scratch对象中。
+ *
+ * @param v_hat Kmer对象，表示要提取的Kmer 读取的kmer
+ * @param maximal_unitig Maximal_Unitig_Scratch对象，用于存储提取的最大单元图
+ *
+ * @return 提取成功返回true，否则返回false
+ */
 inline bool Read_CdBG_Extractor<k>::extract_maximal_unitig(const Kmer<k>& v_hat, Maximal_Unitig_Scratch<k>& maximal_unitig)
 {
     static constexpr cuttlefish::side_t back = cuttlefish::side_t::back;
     static constexpr cuttlefish::side_t front = cuttlefish::side_t::front;
 
-
+    //返回 v_hat的state_
     State_Read_Space state = hash_table[v_hat].state(); // State of the vertex `v_hat`.
+    // 包含maximal unitig的元素已经输出。
+    // 就是表示该点的两个side的 state都已经确定了。
     if(state.is_outputted())    // The containing maximal unitig has already been outputted.
         return false;
 
-
+    // 让cycle = nullptr
     maximal_unitig.mark_linear();
-    
+    // 获取v_hat的状态state,然后从back开始walk,使用 unitig_back作为容器
     if(!walk_unitig(v_hat, state, back, maximal_unitig.unitig(back)))
-        return false;
+        return false;//为false的情况,到达的顶点两端side是否分支已经确定,但是当前到达的side却不是分支
 
     if(maximal_unitig.unitig(back).is_cycle())
-        maximal_unitig.mark_cycle(back);
+        maximal_unitig.mark_cycle(back);//是环就把对应side的unitig类赋值给cycle
     else
         if(!walk_unitig(v_hat, state, front, maximal_unitig.unitig(front)))
             return false;
 
-
+    // sign_vertex() 返回两端端点中更小的顶点
+    // 如果是环就返回所有列表里最小的顶点
+    // 没有标记所有顶点,而是只标记标志顶点
     if(!mark_vertex(maximal_unitig.sign_vertex()))
         return false;
-
+    // 没懂为什么要让back或者front其中之一反向互补
     maximal_unitig.finalize();
     return true;
 }
 
 
 template <uint16_t k>
+/**
+ * @brief 遍历单位图（unitig）
+ *
+ * 遍历给定单位图，根据指定的顶点、状态和边，更新单位图的信息。
+ *
+ * @param v_hat 当前顶点的 Kmer 对象
+ * @param st_v 当前顶点的状态
+ * @param s_v_hat 当前顶点的边侧信息
+ * @param unitig 单位图对象
+ *
+ * @return 遍历是否成功
+ */
 inline bool Read_CdBG_Extractor<k>::walk_unitig(const Kmer<k>& v_hat, const State_Read_Space st_v, const cuttlefish::side_t s_v_hat, Unitig_Scratch<k>& unitig)
 {
     // Data structures to be reused per each vertex extension of the unitig.
-
+    // 需要被重用的数据结构
+    // 当前顶点`v_hat`的一侧，通过它来扩展单元，即退出`v_hat`。
+    // 如果是back开始扩展就是back，如果是front开始扩展就是front
     cuttlefish::side_t s_v = s_v_hat;   // The side of the current vertex `v_hat` through which to extend the unitig, i.e. exit `v_hat`.
+    // 当前顶点被添加到unitigs。
     Directed_Vertex<k> v(s_v == cuttlefish::side_t::back ? v_hat : v_hat.reverse_complement(), hash_table); // Current vertex being added to the unitig.
+    // 顶点`v`的状态。
     State_Read_Space state = st_v;  // State of the vertex `v`.
+    // 潜在的下一个边缘从“v”包括到unitig。
     cuttlefish::edge_encoding_t e_v;    // The potential next edge from `v` to include into the unitig.
+    // 与边' e_v '和从' v '出发的' s_v '相对应的碱基有可能添加到单位g的字面形式中。
     cuttlefish::base_t b_ext;   // The nucleobase corresponding to the edge `e_v` and the exiting side `s_v` from `v` to potentially add to the literal form of the unitig.
-    
+    // 主要是label_和 hash_装入v的相关信息
     unitig.init(v); // Initialize the unitig with the current vertex.
 
 
     while(true)
     {
+        //根据边获取的下一个碱基
         e_v = state.edge_at(s_v);
+        //如果是N or E,说明是非分支节点
         if(cuttlefish::is_fuzzy_edge(e_v))  // Reached an endpoint.
             break;
-
+        //只有不是N or E的时候，才进行下一步
         b_ext = (s_v == cuttlefish::side_t::back ? DNA_Utility::map_base(e_v) : DNA_Utility::complement(DNA_Utility::map_base(e_v)));
+        std::cout << "v的起始标签是" << v.kmer().string_label() << std::endl;
+        // v 属于重复使用的数据结构
         v.roll_forward(b_ext, hash_table);  // Walk to the next vertex.
-
+        std::cout << "v的移动后的标签是" << v.kmer().string_label() << std::endl;
+        // 同理 state
         state = hash_table[v.hash()].state();
+        // 同理 s_v
+        // v的kmer是否为 canoical kmer,如果是就是back，如果不是就是front
         s_v = v.entrance_side();
-
+        // 到达的顶点两边side都已经确定是否为非分支
         if(state.is_outputted())
             return state.was_branching_side(s_v);   // If `s_v` was a branching side, then the walk just crossed to a different unitig;
                                                     // so this unitig is depleted. Otherwise, `s_v` must belong to this unitig. In that
                                                     // case, the unitig has already been outputted earlier.
-
+        // 到达的side状态为N,return True
         if(state.is_branching_side(s_v))    // Crossed an endpoint and reached a different unitig.
             break;
 
         // Still within the unitig.
+        // 如果扩展到anchor,也就是起始点就break
         if(!unitig.extend(v, DNA_Utility::map_char(b_ext)))
             break;  // The unitig is a DCC (Detached Chordless Cycle).
-
+        // 到达顶点的另一端side
         s_v = cuttlefish::opposite_side(s_v);
     }
 

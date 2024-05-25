@@ -10,7 +10,7 @@ template <uint16_t k>
  * @brief Kmer_Container 构造函数
  *
  * 使用给定的 KMC 数据库文件路径创建 Kmer_Container 对象。
- *
+ * 在对应kmc_file_path路径里读取一些参数,然后存储到kmer_database_info里去,也就是该类的成员变量
  * @param kmc_file_path KMC 数据库文件路径
  */
 Kmer_Container<k>::Kmer_Container(const std::string& kmc_file_path):
@@ -18,6 +18,7 @@ Kmer_Container<k>::Kmer_Container(const std::string& kmc_file_path):
 {
     CKMC_DB kmer_database;
     // 打开文件`.kmc_pre` & `.kmc_suf '，并将KMC DB参数读取到RAM。
+   //std::cout<<"kmer_database 读取前:"<< kmer_database <<std::endl;
     if(!kmer_database.read_parameters(kmc_file_path))
     {
         std::cout << "Error opening KMC database files with prefix " << kmc_file_path << ". Aborting.\n";
@@ -82,11 +83,18 @@ bool Kmer_Container<k>::exists(const std::string& kmc_db_path)
 
 
 template <uint16_t k>
+/**
+ * @brief 从指定路径中移除 KMC 数据库文件
+ *
+ * 从给定的路径中移除 KMC 数据库文件，包括前缀和后缀文件。
+ *
+ * @param kmc_db_path KMC 数据库文件的路径
+ */
 void Kmer_Container<k>::remove(const std::string& kmc_db_path)
 {
     const std::string kmc_pref_file(kmc_db_path + ".kmc_pre");
     const std::string kmc_suff_file(kmc_db_path + ".kmc_suf");
-
+    //如果存在1个删除失败，则返回错误
     if(!remove_file(kmc_pref_file) || !remove_file(kmc_suff_file))
     {
         std::cerr << "Error removing the KMC database file from path prefix " << kmc_db_path << ". Aborting.\n";

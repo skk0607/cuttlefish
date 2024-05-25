@@ -1,0 +1,23 @@
+{
+    "parameters info": {
+        "input": "/data_ssd/wuxinyi/genome_data/GCA_000001405.29_GRCh38.p14_genomic.fna",
+        "k": 11,
+        "output prefix": "/home/wxy/project/cuttlefish/data/output/human"
+    },
+    "basic info": {
+        "vertex count": 2097100,
+        "edge count": 8368497
+    },
+    "contigs info": {
+        "maximal unitig count": 2097094,
+        "vertex count in the maximal unitigs": 2097100,
+        "shortest maximal unitig length": 11,
+        "longest maximal unitig length": 12,
+        "sum maximal unitig length": 23068040,
+        "avg. maximal unitig length": 11,
+        "_comment": "lengths are in bases"
+    },
+    "detached chordless cycles (DCC) info": {
+        "DCC count": 0
+    }
+}

@@ -154,12 +154,30 @@ inline cuttlefish::edge_encoding_t State_Read_Space::edge_at(const cuttlefish::s
 }
 
 
+/**
+ * @brief 判断是否为分支侧
+ *
+ * 判断给定的侧是否为分支侧。
+ *
+ * @param side 侧
+ *
+ * @return 如果给定的侧为分支侧，则返回 true；否则返回 false
+ */
 inline bool State_Read_Space::is_branching_side(const cuttlefish::side_t side) const
 {
     return edge_at(side) == cuttlefish::edge_encoding_t::N;
 }
 
 
+/**
+ * @brief 判断是否为分支边
+ *
+ * 判断给定的边是否为分支边。
+ *
+ * @param side 边所在的侧
+ *
+ * @return 如果给定的边是分支边，则返回 true；否则返回 false
+ */
 inline bool State_Read_Space::was_branching_side(const cuttlefish::side_t side) const
 {
     return edge_at(side) == cuttlefish::edge_encoding_t::OP_branching;
@@ -180,6 +198,11 @@ inline void State_Read_Space::update_edge_at(const cuttlefish::side_t side, cons
 }
 
 
+/**
+ * @brief 标记输出
+ *
+ * 将当前对象标记为已输出状态。根据前后两个方向的分支情况，设置对应的编码值。
+ */
 inline void State_Read_Space::mark_outputted()
 {
     static constexpr cuttlefish::edge_encoding_t OP_non_branch = cuttlefish::edge_encoding_t::OP_non_branch;
@@ -193,6 +216,13 @@ inline void State_Read_Space::mark_outputted()
 }
 
 
+/**
+ * @brief 判断是否已经输出
+ *
+ * 判断当前状态是否已经输出。
+ *
+ * @return 如果已经输出则返回 true，否则返回 false
+ */
 inline bool State_Read_Space::is_outputted() const
 {
     static constexpr uint8_t OP_non_branch = static_cast<uint8_t>(cuttlefish::edge_encoding_t::OP_non_branch);
@@ -205,6 +235,15 @@ inline bool State_Read_Space::is_outputted() const
 }
 
 
+/**
+ * @brief 判断两个 State_Read_Space 对象是否相等
+ *
+ * 通过比较两个 State_Read_Space 对象的 code 成员变量是否相等，来判断它们是否相等。
+ *
+ * @param rhs 要比较的另一个 State_Read_Space 对象
+ *
+ * @return 如果两个对象的 code 成员变量相等，则返回 true；否则返回 false
+ */
 inline bool State_Read_Space::operator==(const State_Read_Space& rhs) const
 {
     return code == rhs.code;

@@ -12,7 +12,7 @@
 #include <cstddef>
 #include <vector>
 
-
+//一个保存临时数据的类，用于从覆盖它并在交汇点重叠的两个组成单元中构建最大单元。也就是说，最大单元g被分成两个单元`u_b`和`u_f`，在某个顶点`v`， `u_b`和`u_f`分别连接到`v`的前部和后部。单元的构建方式是路径从`v`开始。因此，文字形式的最大单位是' \bar(u_f) \glue_k u_b '(或其反向补码)。
 // =============================================================================
 // A class to keep scratch data for building maximal unitigs from two of its
 // constituent unitigs that cover it and overlap at a meeting-point vertex.
@@ -94,6 +94,14 @@ public:
 
 
 template <uint16_t k>
+/**
+ * @brief 获取最大单元型(Unitig)的草稿对象
+ *
+ * 根据给定的方向参数，返回最大单元型(Unitig)的草稿对象。
+ *
+ * @param s 方向
+ * @return Unitig_Scratch<k>& 最大单元型(Unitig)的草稿对象
+ */
 inline Unitig_Scratch<k>& Maximal_Unitig_Scratch<k>::unitig(const cuttlefish::side_t s)
 {
     return s == cuttlefish::side_t::back ? unitig_back : unitig_front;
@@ -101,6 +109,13 @@ inline Unitig_Scratch<k>& Maximal_Unitig_Scratch<k>::unitig(const cuttlefish::si
 
 
 template <uint16_t k>
+/**
+ * @brief 判断是否为规范形式
+ *
+ * 判断 Maximal_Unitig_Scratch 对象是否为规范形式。
+ * 如果front 扩展的最后一个顶点的 反向互补比 back 扩展的最后1个顶点的反向互补小，则返回 true；否则返回 false。
+ * @return 如果为规范形式，则返回 true；否则返回 false。
+ */
 inline bool Maximal_Unitig_Scratch<k>::is_canonical() const
 {
     return unitig_front.endpoint().kmer_bar() < unitig_back.endpoint().kmer_bar();
@@ -108,6 +123,13 @@ inline bool Maximal_Unitig_Scratch<k>::is_canonical() const
 
 
 template <uint16_t k>
+/**
+ * @brief 判断是否为线性结构
+ *
+ * 判断当前 Maximal_Unitig_Scratch 对象是否为线性结构。
+ *
+ * @return 如果为线性结构则返回 true，否则返回 false
+ */
 inline bool Maximal_Unitig_Scratch<k>::is_linear() const
 {
     return cycle == nullptr;
@@ -122,6 +144,12 @@ inline uint64_t Maximal_Unitig_Scratch<k>::id() const
 
 
 template <uint16_t k>
+/**
+ * @brief 标记为线性
+ *
+ * 将当前对象标记为线性。
+ * 线性表示对象不是循环结构。
+ */
 inline void Maximal_Unitig_Scratch<k>::mark_linear()
 {
     cycle = nullptr;
@@ -151,6 +179,15 @@ inline std::size_t Maximal_Unitig_Scratch<k>::size() const
 
 
 template <uint16_t k>
+/**
+ * @brief 获取带符号顶点
+ *
+ * 返回当前 Maximal_Unitig_Scratch 对象中带符号的顶点。
+ * 如果是线性,且为canpical形式，则返回 unitig_front 的 endpoint;
+ * 如果是线性,且不是canpical形式，则返回 unitig_back 的 endpoint;
+ * 如果是循环，则返回 cycle 的最小顶点。
+ * @return 带符号的顶点引用
+ */
 inline const Directed_Vertex<k>& Maximal_Unitig_Scratch<k>::sign_vertex() const
 {
     return is_linear() ?   (is_canonical() ? unitig_front.endpoint() : unitig_back.endpoint()) :
@@ -166,13 +203,20 @@ inline void Maximal_Unitig_Scratch<k>::mark_cycle(const cuttlefish::side_t s)
 
 
 template <uint16_t k>
+/**
+ * @brief 完成最大单元格的初始化
+ *
+ * 根据当前对象的状态，完成最大单元格的初始化操作。
+ * 如果对象是线性的，则根据是否规范来决定其id和反转互补操作；
+ * 如果对象是非线性的，则设置id为最小顶点的哈希值，并根据需要执行反转互补操作。
+ */
 inline void Maximal_Unitig_Scratch<k>::finalize()
 {
     if(is_linear())
     {
         if(is_canonical())
-            id_ = unitig_front.endpoint().hash(),
-            unitig_front.reverse_complement();
+            id_ = unitig_front.endpoint().hash(),//只存储标记顶点的哈希值为id
+            unitig_front.reverse_complement();//存储更小的unititgs? 标准化存储?
         else
             id_ = unitig_back.endpoint().hash(),
             unitig_back.reverse_complement();
@@ -187,6 +231,13 @@ inline void Maximal_Unitig_Scratch<k>::finalize()
 
 
 template <uint16_t k>
+/**
+ * @brief 判断是否为环状结构
+ *
+ * 判断当前 Maximal_Unitig_Scratch 对象是否为环状结构。
+ *
+ * @return 如果为环状结构则返回 true，否则返回 false
+ */
 inline bool Maximal_Unitig_Scratch<k>::is_cycle() const
 {
     return !is_linear();

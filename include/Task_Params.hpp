@@ -52,6 +52,14 @@ struct Read_dBG_Compaction_Params
 
     Read_dBG_Compaction_Params() {}
 
+    /**
+     * @brief 读取dBG压缩参数
+     *
+     * 从给定的解析器中读取dBG压缩参数，并设置到类的成员变量中。
+     *
+     * @param parser 解析器指针
+     * @param thread_id 线程ID
+     */
     Read_dBG_Compaction_Params(void* const parser, const uint16_t thread_id):
         parser(parser),
         thread_id(thread_id)

@@ -112,7 +112,7 @@ inline void Directed_Vertex<k>::init(const Kmer_Hash_Table<k, cuttlefish::BITS_P
     // 计算canonical的hash值,然后存入对象的属性中
     // TODO: 是否存入了hash表?
     h = hash(*kmer_hat_ptr);
-    std::cout<<kmer_.string_label()<<"的hash值是"<<h<<std::endl;
+   // std::cout<<kmer_.string_label()<<"的hash值是"<<h<<std::endl;
 }
 
 
@@ -193,6 +193,13 @@ inline void Directed_Vertex<k>::from_suffix(const Kmer<k + 1>& e, const Kmer_Has
 
 
 template <uint16_t k>
+/**
+ * @brief 获取 kmer 值
+ *
+ * 返回当前有向顶点中的 kmer 值。
+ * 实际就是返回kmer_
+ * @return 返回一个 const Kmer<k>& 类型的 kmer 值引用
+ */
 inline const Kmer<k>& Directed_Vertex<k>::kmer() const
 {
     return kmer_;
@@ -221,11 +228,21 @@ inline uint64_t Directed_Vertex<k>::hash() const
 
 
 template <uint16_t k>
+/**
+ * @brief 向前滚动顶点
+ *
+ * 向前滚动当前顶点，更新其 k-mer 信息，并根据给定的哈希表重新计算哈希值。
+ * 
+ * @param b 下一个碱基
+ * @param hash Kmer 哈希表引用
+ */
 inline void Directed_Vertex<k>::roll_forward(const cuttlefish::base_t b, const Kmer_Hash_Table<k, cuttlefish::BITS_PER_READ_KMER>& hash)
 {
+    //此时kmer_和kmer_bar都移动了2bit为了获取下一个kmer
     kmer_.roll_to_next_kmer(b, kmer_bar_);
+    //比较获得 cannonical 的指针
     kmer_hat_ptr = Kmer<k>::canonical(kmer_, kmer_bar_);
-
+    //计算hash值
     h = hash(*kmer_hat_ptr);
 }
 
@@ -246,6 +263,13 @@ inline cuttlefish::side_t Directed_Vertex<k>::exit_side() const
 
 
 template <uint16_t k>
+/**
+ * @brief 获取有向顶点的入口侧
+ *
+ * 根据当前顶点的 kmer 值和 kmer_hat_ptr 的指向关系，判断顶点的入口侧是前方还是后方，并返回对应的枚举值。
+ *
+ * @return 入口侧的枚举值
+ */
 inline cuttlefish::side_t Directed_Vertex<k>::entrance_side() const
 {
     return &kmer_ == kmer_hat_ptr ? cuttlefish::side_t::front : cuttlefish::side_t::back;

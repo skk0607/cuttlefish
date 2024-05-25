@@ -328,7 +328,7 @@ inline bool Kmer_Hash_Table<k, BITS_PER_KEY>::update(Kmer_Hash_Entry_API<BITS_PE
     // }
     // locks_[lidx].unlock();
     // return success;
-    //api.bv_entry 是一个对象，& 是取地址运算符，它返回 api.bv_entry 对象的地址。
+    // api.bv_entry 是一个对象，& 是取地址运算符，它返回 api.bv_entry 对象的地址。
     // 在 std::distance 函数中，这个地址被转换为一个迭代器。这通常意味着 api.bv_entry 是 hash_table 容器中的一个元素。
     // 计算从 hash_table 容器开始位置到 api.bv_entry 对象地址之间的元素数量差。
     const uint64_t bucket = std::distance(hash_table.begin(), &(api.bv_entry));

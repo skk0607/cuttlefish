@@ -9,6 +9,7 @@
 
 #include <iomanip>
 #include <fstream>
+#include <iostream>
 
 
 template <uint16_t k>
@@ -45,10 +46,21 @@ void dBG_Info<k>::load_from_file()
 
 
 template <uint16_t k>
+/**
+ * @brief 添加基础信息
+ *
+ * 将给定的 Read_CdBG_Constructor 对象的基本信息添加到 dBG_Info 对象中。
+ *
+ * @tparam k 模板参数
+ *
+ * @param cdbg_constructor Read_CdBG_Constructor 对象，提供基础信息
+ */
 void dBG_Info<k>::add_basic_info(const Read_CdBG_Constructor<k>& cdbg_constructor)
 {
     dBg_info[basic_field]["vertex count"] = cdbg_constructor.vertex_count();
     dBg_info[basic_field]["edge count"] = cdbg_constructor.edge_count();
+    std::cout << "basic info added: edge count "
+              << cdbg_constructor.edge_count() << ",vertex count"<< cdbg_constructor.vertex_count() << std::endl;
 }
 
 

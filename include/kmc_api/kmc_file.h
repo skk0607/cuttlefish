@@ -568,6 +568,13 @@ inline uint64_t CKMC_DB::read_raw_suffixes(uint8_t* const suff_buf, std::vector<
 }
 
 
+/**
+ * @brief 获取后缀记录大小
+ *
+ * 返回后缀记录的大小。
+ *
+ * @return 后缀记录大小
+ */
 inline uint32_t CKMC_DB::suff_record_size() const
 {
 	return sufix_rec_size;
@@ -599,41 +606,51 @@ template <uint16_t k>
  */
 inline void CKMC_DB::parse_kmer_buf(std::vector<std::pair<uint64_t, uint64_t>>::iterator& prefix_it, const uint8_t* const suff_buf, size_t buf_idx, Kmer<k>& kmer) const
 {
+	// 定义NUM_INTS，为kmer的位数除以32后向上取整，用于存储kmer数据的数组大小
 	static constexpr uint16_t NUM_INTS = (k + 31) / 32;
 	uint64_t kmc_data[NUM_INTS]{};
 
-	// Check if we have exhausted the currrent prefix. 检查当前的前缀是否已经用完。
+	// Check if we have exhausted the currrent prefix. 
+	// 检查当前的前缀是否已经用完。
 	if(prefix_it->second == 0)
 		++prefix_it;
-
+	// 获取当前前缀值
 	const uint64_t prefix = prefix_it->first;
+	// 前缀计数器减一
 	prefix_it->second--;
-
+	// 计算偏移量off，表示前缀在KMC对齐中的位置
 	uint32_t off = (sizeof(prefix) * 8) - (lut_prefix_length * 2) - byte_alignment_ * 2;
+	// 对前缀进行移位，并存储到KMC对齐中
+	// 将前缀左移off位，以对齐到最高有效位（MSD）。对于kmc2 db格式，"& prefix_mask"是必要的
 	const uint64_t temp_prefix = (prefix & prefix_mask_) << off;	// shift prefix towards MSD. "& prefix_mask" necessary for kmc2 db format
 
 	// Store prefix in a KMC alignment (differs in endianness from Cuttlefish's).
+	// 将处理后的前缀存储到kmc_data数组的第一个元素中
 	kmc_data[0] = temp_prefix;
 
 
 	// Parse suffix.
-	uint32_t row_idx{0};
-	uint64_t suff{0};
-
+	uint32_t row_idx{0};// kmc_data数组的索引
+	uint64_t suff{0};// 存储当前后缀的变量
+	// 减去8位，为下一个后缀的存储做准备
 	off -= 8;
+	// 循环解析后缀
 	for(uint32 a = 0; a < sufix_size; a++)
-	{			
+	{		
+		// 从后缀缓冲区中获取当前后缀	
 		suff = suff_buf[buf_idx++];
+		// 将后缀左移off位
 		suff = suff << off;
+		// 将处理后的后缀与kmc_data数组中的当前元素进行或运算，更新数组元素的值
 		kmc_data[row_idx] = kmc_data[row_idx] | suff;
-
+		// 判断是否到达kmer_data的一个单词的末尾
 		if(off == 0)				//the end of a word in kmer_data
 		{
-			off = 56;
-			row_idx++;
+			off = 56;// 将off重置为56，为下一个单词的存储做准备
+			row_idx++;// 索引加1，为下一个后缀的存储做准备
 		}
 		else
-			off -= 8;
+			off -= 8;// 减去8位，为下一个后缀的存储做准备
 	}
 
 	// Skip counter.

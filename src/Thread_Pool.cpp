@@ -13,7 +13,7 @@ template <uint16_t k>
  * @brief 线程池构造函数
  *
  * 创建一个线程池对象，并初始化相关成员变量。
- *
+ * 在创建线程池的时候已经创建了消费者进程
  * @param thread_count 线程数量
  * @param dBG 指向线程池使用的数据结构的指针
  * @param task_type 任务类型
@@ -124,6 +124,7 @@ void Thread_Pool<k>::task(const uint16_t thread_id)
 
             case Task_Type::extract_unipaths_read_space:
                 {
+                    //取对应线程的参数
                     const Read_dBG_Compaction_Params& params = read_dBG_compaction_params[thread_id];
                     static_cast<Read_CdBG_Extractor<k>*>(dBG)->
                         process_vertices(static_cast<Kmer_SPMC_Iterator<k>*>(params.parser), params.thread_id);
@@ -131,7 +132,7 @@ void Thread_Pool<k>::task(const uint16_t thread_id)
                 break;
             }
 
-            //任务做完了就立刻释放线程
+            //任务做完了就立刻将线程的状态改为pending
             free_thread(thread_id);
         }
     }
@@ -227,6 +228,13 @@ void Thread_Pool<k>::assign_task(const uint16_t thread_id)
 
 
 template <uint16_t k>
+/**
+ * @brief 释放线程
+ *
+ * 将指定线程标记为待处理状态，释放线程以便再次使用。
+ *
+ * @param thread_id 线程ID
+ */
 void Thread_Pool<k>::free_thread(const uint16_t thread_id)
 {
     if(task_status[thread_id] != Task_Status::available)

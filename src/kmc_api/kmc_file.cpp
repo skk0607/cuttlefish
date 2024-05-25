@@ -816,6 +816,15 @@ bool CKMC_DB::Info(uint32 &_kmer_length, uint32 &_mode, uint32 &_counter_size, u
 }
 
 // Get current parameters from kmer_database
+/**
+ * @brief 获取 CKMC_DB 的信息
+ *
+ * 将 CKMC_DB 的信息填充到给定的 CKMCFileInfo 结构体中。
+ *
+ * @param info CKMCFileInfo 结构体引用，用于存储 CKMC_DB 的信息
+ *
+ * @return 如果 CKMC_DB 已打开，则返回 true；否则返回 false
+ */
 bool CKMC_DB::Info(CKMCFileInfo& info) const
 {
 	if (is_opened)
