@@ -24,7 +24,7 @@ class Read_CdBG
 {
 private:
 
-    const Build_Params params;  // Required parameters (wrapped inside).
+    const Build_Params params;  // 命令行输入,Required parameters (wrapped inside).
     const Data_Logistics logistics; // Data logistics manager for the algorithm execution.
     std::unique_ptr<Kmer_Hash_Table<k, cuttlefish::BITS_PER_READ_KMER>> hash_table; // Hash table for the vertices (canonical k-mers) of the graph.
 

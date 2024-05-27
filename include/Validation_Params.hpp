@@ -5,8 +5,10 @@
 
 
 #include "Seq_Input.hpp"
+#include "globals.hpp"
 
 #include <cstdint>
+#include <iostream>
 #include <string>
 #include <vector>
 #include <thread>

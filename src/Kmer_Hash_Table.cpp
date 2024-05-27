@@ -106,12 +106,13 @@ void Kmer_Hash_Table<k, BITS_PER_KEY>::build_mph_function(const uint16_t thread_
         // Open a container over the k-mer database.
         // 还没有存储,仅仅是创建 counter
         const Kmer_Container<k> kmer_container(kmc_db_path);
-
+       // printf("range 前:kmer_counter_size: %lu\n", kmer_container.size());
         // Build the MPHF.
         std::cout << "Building the MPHF from the k-mer database " << kmer_container.container_location() << ".\n";
 
         // auto data_iterator = boomphf::range(kmer_container.buf_begin(), kmer_container.buf_end());
         const auto data_iterator = boomphf::range(kmer_container.spmc_begin(thread_count), kmer_container.spmc_end(thread_count));
+        //printf("range 后:kmer_counter_size: %lu\n", kmer_container.size());
         std::cout << "Using gamma = " << gamma << ".\n";
         mph = new mphf_t(kmer_count, data_iterator, working_dir_path, thread_count, gamma);
 

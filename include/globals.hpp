@@ -11,6 +11,7 @@
 
 // The macro `INSTANCE_COUNT` must be set exactly to `(MAX_K + 1) / 2` for a required maximum k-value.
 // Also, the `MAX_K` value must be odd (as the k-values used in the algorithm) for correct results.
+// 宏`INSTANCE_COUNT`必须精确设置为`(MAX_K + 1) / 2`以获得所需的最大k值。此外，为了得到正确的结果，`MAX_K`的值必须是奇数(即算法中使用的k值)。
 #ifndef INSTANCE_COUNT
     #define INSTANCE_COUNT 32
 #endif
@@ -65,6 +66,7 @@ namespace cuttlefish
 
 // Given some `x`, explicitly instantiates the class `class_name` for the template parameter `k` with `2x + 1`;
 // i.e. it is an instantiator for odd k-values.
+// 给定一些`x`，使用`2x + 1`显式实例化模板参数`k`的类`class_name`;例如，它是一个奇数k值的实例化器。
 #define INSTANTIATE(z, x, class_name) template class class_name<2 * x + 1>;
 
 // Enumerates all the explicit instantiations of the template class `class_name` using `instantiator`, for all

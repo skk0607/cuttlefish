@@ -262,6 +262,11 @@ void Thread_Pool<k>::wait_completion() const
 
 
 template <uint16_t k>
+/**
+ * @brief 关闭线程池
+ *
+ * 等待所有线程完成执行后，关闭线程池中的所有线程。
+ */
 void Thread_Pool<k>::close()
 {
     // Wait for all the threads to finish.

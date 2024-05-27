@@ -255,27 +255,46 @@ inline bool Read_CdBG_Extractor<k>::mark_vertex(const Directed_Vertex<k>& v)
         return false;
     //标记已输出
     state.mark_outputted();
+    // 凡是更新 state,都先用拷贝,然后更新
     return hash_table.update(bucket);
 }
 
 
 template <uint16_t k>
+/**
+ * @brief 标记路径
+ *
+ * 将给定的路径哈希值标记为已输出状态。
+ *
+ * @param path_hashes 路径哈希值向量
+ */
 inline void Read_CdBG_Extractor<k>::mark_path(const std::vector<uint64_t>& path_hashes)
-{
+{   //每个顶点都标记为已输出
     for(const uint64_t hash: path_hashes)
         hash_table.update(hash, State_Read_Space::mark_outputted);
 }
 
 
 template <uint16_t k>
+/**
+ * @brief 标记最大单元体
+ *
+ * 根据给定的最大单元体信息，标记相应的路径。
+ *
+ * @param maximal_unitig 最大单元体信息
+ */
 inline void Read_CdBG_Extractor<k>::mark_maximal_unitig(const Maximal_Unitig_Scratch<k>& maximal_unitig)
 {
+    // 如果最大单元体是线性的
     if(maximal_unitig.is_linear())
     {
+        // 标记后向路径
         mark_path(maximal_unitig.unitig_hash(cuttlefish::side_t::back));
+        // 标记前向路径
         mark_path(maximal_unitig.unitig_hash(cuttlefish::side_t::front));
     }
     else
+        // 如果最大单元体是环形的，则标记循环哈希
         mark_path(maximal_unitig.cycle_hash());
 }
 
@@ -285,7 +304,10 @@ template <uint16_t k>
  * @brief 提取最大单元图
  *
  * 从给定的Kmer中提取最大单元图，并存储到指定的Maximal_Unitig_Scratch对象中。
- *
+ * return false的情况:
+ * 1. 当前顶点两端side是否分支已经确定,但是当前到达的side却不是分支
+ * 2. 扩展到达的顶点两端side是否分支已经确定,但是当前到达的side却不是分支
+ * 3. maximal unitigs 的最小顶点在标记顶点时被标记为已输出
  * @param v_hat Kmer对象，表示要提取的Kmer 读取的kmer
  * @param maximal_unitig Maximal_Unitig_Scratch对象，用于存储提取的最大单元图
  *
@@ -308,7 +330,8 @@ inline bool Read_CdBG_Extractor<k>::extract_maximal_unitig(const Kmer<k>& v_hat,
     // 获取v_hat的状态state,然后从back开始walk,使用 unitig_back作为容器
     if(!walk_unitig(v_hat, state, back, maximal_unitig.unitig(back)))
         return false;//为false的情况,到达的顶点两端side是否分支已经确定,但是当前到达的side却不是分支
-
+    // unitig() 返回对应side的 Unitig_Scratch<k>
+    // 上面都标记了cycle = nullptr,为什么还需要这样判断环?
     if(maximal_unitig.unitig(back).is_cycle())
         maximal_unitig.mark_cycle(back);//是环就把对应side的unitig类赋值给cycle
     else
@@ -367,10 +390,10 @@ inline bool Read_CdBG_Extractor<k>::walk_unitig(const Kmer<k>& v_hat, const Stat
             break;
         //只有不是N or E的时候，才进行下一步
         b_ext = (s_v == cuttlefish::side_t::back ? DNA_Utility::map_base(e_v) : DNA_Utility::complement(DNA_Utility::map_base(e_v)));
-        std::cout << "v的起始标签是" << v.kmer().string_label() << std::endl;
+        // std::cout << "v的起始标签是" << v.kmer().string_label() << std::endl;
         // v 属于重复使用的数据结构
         v.roll_forward(b_ext, hash_table);  // Walk to the next vertex.
-        std::cout << "v的移动后的标签是" << v.kmer().string_label() << std::endl;
+        // std::cout << "v的移动后的标签是" << v.kmer().string_label() << std::endl;
         // 同理 state
         state = hash_table[v.hash()].state();
         // 同理 s_v

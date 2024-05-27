@@ -99,6 +99,7 @@ void Read_CdBG<k>::construct()
 
 
     std::cout << "\nConstructing the minimal perfect hash function (MPHF) over the vertex set.\n";
+    //猜测是构建MPHF的时候已经存储了数据,因为后续进行lookup的时候没有存储数据
     construct_hash_table(vertex_count);
 
     std::chrono::high_resolution_clock::time_point t_mphf = std::chrono::high_resolution_clock::now();
@@ -111,6 +112,7 @@ void Read_CdBG<k>::construct()
 #ifdef CF_DEVELOP_MODE
     if(params.edge_db_path().empty())
 #endif
+    //这里是删除边的文件
     Kmer_Container<k + 1>::remove(logistics.edge_db_path());//删除边的pre和suf两个文件
     
     std::chrono::high_resolution_clock::time_point t_dfa = std::chrono::high_resolution_clock::now();
@@ -123,7 +125,7 @@ void Read_CdBG<k>::construct()
 #ifdef CF_DEVELOP_MODE
     if(params.vertex_db_path().empty())
 #endif
-    if(!params.save_vertices())
+    if(!params.save_vertices())//删除顶点文件
         Kmer_Container<k>::remove(logistics.vertex_db_path());
 
     std::chrono::high_resolution_clock::time_point t_extract = std::chrono::high_resolution_clock::now();
@@ -222,11 +224,13 @@ template <uint16_t k>
 /**
  * @brief 提取maximal_unitigs
  *
- * 从 Read_CdBG 类型的对象中提取maximal_unitigs，并将其保存到指定路径的输出文件中。
+ * 从 Read_CdBG
+ * 类型的对象中提取maximal_unitigs，并将其保存到指定路径的输出文件中。
  *
  * @tparam k 哈希值大小
  */
 void Read_CdBG<k>::extract_maximal_unitigs() {
+  // 构建最大非分支路径的提取器
   Read_CdBG_Extractor<k> cdBg_extractor(params, *hash_table);
 
   cdBg_extractor.extract_maximal_unitigs(logistics.vertex_db_path(),

@@ -57,8 +57,8 @@ private:
     uint64_t kmers_read;    // Number of raw k-mers read (off disk) by the iterator.
 
     std::unique_ptr<std::thread> reader{nullptr};   // The thread doing the actual disk-read of the binary data, i.e. the producer thread.
-    static constexpr size_t BUF_SZ_PER_CONSUMER = (1 << 10);   // Size of
-    //static constexpr size_t BUF_SZ_PER_CONSUMER = (1 << 24);   // Size of the consumer-specific buffers (in bytes): 16 MB.
+
+    static constexpr size_t BUF_SZ_PER_CONSUMER = (1 << 24);   // Size of the consumer-specific buffers (in bytes): 16 MB.
 
     std::vector<Consumer_Data> consumer;   // Parsing data required for each consumer.
 

@@ -84,18 +84,25 @@ template <uint16_t k>
  */
 inline void Unipaths_Meta_info<k>::add_maximal_unitig(const std::size_t size)
 {
+    // 增加单元路径的计数
     unipath_count_++;
 
+    // 单元路径的顶点数量
     const std::size_t vertex_count = size;
+    // 单元路径的大小（顶点数量加上k-1）
     const std::size_t unipath_size = vertex_count + (k - 1);
+    // 增加kmer计数
     kmer_count_ += vertex_count;
 
+    // 如果当前单元路径的大小大于最大长度，则更新最大长度
     if(max_len_ < unipath_size)
         max_len_ = unipath_size;
 
+    // 如果当前单元路径的大小小于最小长度，则更新最小长度
     if(min_len_ > unipath_size)
         min_len_ = unipath_size;
 
+    // 累加单元路径的长度到总长度
     sum_len_ += unipath_size;
 }
 

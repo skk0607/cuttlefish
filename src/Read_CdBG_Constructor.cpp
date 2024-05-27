@@ -4,7 +4,6 @@
 #include "Kmer_SPMC_Iterator.hpp"
 #include "Thread_Pool.hpp"
 
-#include <chrono>
 
 
 template <uint16_t k>

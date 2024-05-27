@@ -20,6 +20,7 @@
 // larger than that is added), and it flushes to a sink of type `T_sink_` when it
 // overflows or is destructed. Writing to the provided sink (in the constructor)
 // is thread-safe.
+//包含连续字符的buffer类该缓冲区的最大容量为` capacity `(尽管当添加长度大于该长度的字符串时，它是非绑定的)，并且当缓冲区溢出或被销毁时，它会刷新到类型为`T_sink_`的sink。写入提供的接收器(在构造函数中)是线程安全的。
 template <std::size_t CAPACITY, typename T_sink_>
 class Character_Buffer
 {
@@ -133,13 +134,28 @@ inline void Character_Buffer<CAPACITY, T_sink_>::operator+=(const T_container_& 
 
 template <std::size_t CAPACITY, typename T_sink_>
 template <typename T_container_>
+/**
+ * @brief 向字符缓冲区追加FASTA记录
+ *
+ * 将给定的FASTA记录追加到字符缓冲区中。
+ *
+ * @param fasta_rec 要追加的FASTA记录
+ */
 inline void Character_Buffer<CAPACITY, T_sink_>::operator+=(const FASTA_Record<T_container_>& fasta_rec)
 {
+    // 确保有足够的空间存储头信息、换行符、序列和换行符
     ensure_space(fasta_rec.header_size() + 1 + fasta_rec.seq_size() + 1);   // Two extra bytes for the line-breaks.
 
+    // 追加头信息
     fasta_rec.append_header(buffer);    // Append the header.
+
+    // 添加换行符
     buffer.emplace_back('\n');  // Break line.
+
+    // 追加序列
     fasta_rec.append_seq(buffer);   // Append the sequence.
+
+    // 添加换行符
     buffer.emplace_back('\n');  // Break line.
 }
 
@@ -186,6 +202,11 @@ inline void Character_Buffer<CAPACITY, T_sink_>::flush()
 
 
 template <std::size_t CAPACITY, typename T_sink_>
+/**
+ * @brief 销毁 Character_Buffer 对象
+ *
+ * 在销毁 Character_Buffer 对象时，如果缓冲区不为空，则调用 flush() 函数清空缓冲区。
+ */
 inline Character_Buffer<CAPACITY, T_sink_>::~Character_Buffer()
 {
     if(!buffer.empty())
@@ -193,6 +214,14 @@ inline Character_Buffer<CAPACITY, T_sink_>::~Character_Buffer()
 }
 
 
+/**
+ * @brief 将字符缓冲区写入输出流
+ *
+ * 将给定的字符缓冲区写入指定的输出流中。
+ *
+ * @param buf 字符缓冲区
+ * @param output 输出流
+ */
 inline void Character_Buffer_Flusher<std::ofstream>::write(std::vector<char>& buf, std::ofstream& output)
 {
     lock.lock();

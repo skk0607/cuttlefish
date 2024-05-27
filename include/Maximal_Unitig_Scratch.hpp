@@ -245,21 +245,40 @@ inline bool Maximal_Unitig_Scratch<k>::is_cycle() const
 
 
 template <uint16_t k>
+/**
+ * @brief 返回 FASTA 记录
+ *
+ * 返回一个表示当前对象的 FASTA 记录。如果当前对象是规范的，则记录中的序列标签为前向单位序列的标签；否则，记录中的序列标签为反向单位序列的标签。
+ *
+ * @return 返回一个包含 ID、序列标签和 k 值的 FASTA 记录对象
+ */
 inline const FASTA_Record<std::vector<char>> Maximal_Unitig_Scratch<k>::fasta_rec() const
 {
+    // 如果当前对象是规范的，则返回正向序列的FASTA记录
     return is_canonical() ?
             FASTA_Record<std::vector<char>>(id(), unitig_front.label(), unitig_back.label(), 0, k) :
+    // 否则返回反向序列的FASTA记录
             FASTA_Record<std::vector<char>>(id(), unitig_back.label(), unitig_front.label(), 0, k);
 }
 
 
 template <uint16_t k>
 template <std::size_t CAPACITY, typename T_sink_>
+/**
+ * @brief 将 Fasta 记录添加到缓冲区中
+ *
+ * 如果当前对象是线性的，则将 Fasta 记录添加到给定的缓冲区中；否则，以循环的方式将 Fasta 记录添加到缓冲区中。
+ *
+ * @param buffer 字符缓冲区引用
+ */
 inline void Maximal_Unitig_Scratch<k>::add_fasta_rec_to_buffer(Character_Buffer<CAPACITY, T_sink_>& buffer) const
 {
+    // 如果是线性结构
     if(is_linear())
+        // 将FASTA记录添加到缓冲区中
         buffer += fasta_rec();
     else
+        // 旋转追加循环结构的FASTA记录到缓冲区中
         buffer.template rotate_append_cycle<k>(FASTA_Record<std::vector<char>>(id(), cycle->label()), cycle->min_vertex_idx());
 }
 

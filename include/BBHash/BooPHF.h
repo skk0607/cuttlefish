@@ -949,6 +949,20 @@ we need this 2-functors scheme because HashFunctors won't work with unordered_ma
 		
 		// allow perc_elem_loaded  elements to be loaded in ram for faster construction (default 3%), set to 0 to desactivate
 		template <typename Range>
+		/**
+		 * @brief 构造一个mphf对象
+		 *
+		 * 根据给定的参数构造一个mphf对象，并执行相关的初始化操作。
+		 *
+		 * @param n 输入数据的元素数量
+		 * @param input_range 输入数据的范围
+		 * @param working_dir 工作目录
+		 * @param num_thread 使用的线程数，默认为1
+		 * @param gamma 哈希域的大小因子，默认为2.0
+		 * @param writeEach 是否在每个级别写入数据，默认为true
+		 * @param progress 是否显示进度条，默认为true
+		 * @param perc_elem_loaded 加载元素以启用快速模式的百分比，默认为0.03
+		 */
 		mphf(size_t n, Range const& input_range, const std::string& working_dir, int num_thread = 1, double gamma = 2.0, bool writeEach = true, bool progress =true, float perc_elem_loaded = 0.03) :
 		_working_dir(working_dir), _gamma(gamma), _hash_domain(size_t(ceil(double(n) * gamma))), _nelem(n), _num_thread(num_thread), _percent_elem_loaded_for_fastMode (perc_elem_loaded), _withprogress(progress)
 		{
@@ -1041,45 +1055,52 @@ we need this 2-functors scheme because HashFunctors won't work with unordered_ma
 		 *
 		 * @return 元素的最小哈希值，若元素不存在则返回ULLONG_MAX
 		 */
-		uint64_t lookup(const elem_t& elem)
-		{
-			if(! _built) return ULLONG_MAX;
-			
-			//auto hashes = _hasher(elem);
-			uint64_t non_minimal_hp,minimal_hp;
-
-
-			hash_pair_t bbhash;  int level;
-			uint64_t level_hash = getLevel(bbhash,elem,&level);
-
-			if( level == (_nb_levels-1))
-			{
-				auto in_final_map  = _final_hash.find (elem);
-				if ( in_final_map == _final_hash.end() )
+				uint64_t lookup(const elem_t& elem)
 				{
-					//elem was not in orignal set of keys
-					return ULLONG_MAX; //  means elem not in set
-				}
-				else
-				{
-					minimal_hp =  in_final_map->second + _lastbitsetrank;
-					//printf("lookup %llu  level %i   --> %llu \n",elem,level,minimal_hp);
+					if(! _built) return ULLONG_MAX;
+
+					// 如果未构建完成，则返回最大值
+					//auto hashes = _hasher(elem);
+					uint64_t non_minimal_hp,minimal_hp;
+
+					hash_pair_t bbhash;  int level;
+					uint64_t level_hash = getLevel(bbhash,elem,&level);
+
+					if( level == (_nb_levels-1))
+					{
+						// 如果层级等于最大层级
+						auto in_final_map  = _final_hash.find (elem);
+						if ( in_final_map == _final_hash.end() )
+						{
+							// 如果在最终的哈希表中未找到元素
+							//elem was not in orignal set of keys
+							return ULLONG_MAX; //  means elem not in set
+						}
+						else
+						{
+							minimal_hp =  in_final_map->second + _lastbitsetrank;
+							// 找到最终的哈希值
+							//printf("lookup %llu  level %i   --> %llu \n",elem,level,minimal_hp);
+
+							return minimal_hp;
+						}
+		//				minimal_hp = _final_hash[elem] + _lastbitsetrank;
+		//				return minimal_hp;
+					}
+					else
+					{
+						// 如果层级不是最大层级
+						// 获取非最小哈希值
+						// 注意：这里使用了fastrange64函数进行哈希值的计算，但原注释被注释掉了
+						//non_minimal_hp =  level_hash %  _levels[level].hash_domain; // in fact non minimal hp would be  + _levels[level]->idx_begin
+						non_minimal_hp = fastrange64(level_hash,_levels[level].hash_domain);
+					}
+					// 根据非最小哈希值，获取最小哈希值
+					minimal_hp = _levels[level].bitset.rank(non_minimal_hp );
+				//	printf("lookup %llu  level %i   --> %llu \n",elem,level,minimal_hp);
 
 					return minimal_hp;
 				}
-//				minimal_hp = _final_hash[elem] + _lastbitsetrank;
-//				return minimal_hp;
-			}
-			else
-			{
-				//non_minimal_hp =  level_hash %  _levels[level].hash_domain; // in fact non minimal hp would be  + _levels[level]->idx_begin
-				non_minimal_hp = fastrange64(level_hash,_levels[level].hash_domain);
-			}
-			minimal_hp = _levels[level].bitset.rank(non_minimal_hp );
-		//	printf("lookup %llu  level %i   --> %llu \n",elem,level,minimal_hp);
-
-			return minimal_hp;
-		}
 
 		uint64_t nbKeys() const
 		{
@@ -1284,31 +1305,43 @@ we need this 2-functors scheme because HashFunctors won't work with unordered_ma
 
 		}
 
+		/**
+		 * @brief 从输入流中加载数据
+		 *
+		 * 从给定的输入流中读取数据，并将其加载到对象的相应成员变量中。
+		 *
+		 * @param is 输入流引用
+		 */
 		void load(std::istream& is)
 		{
-
+			// 读取_gamma的值
 			is.read(reinterpret_cast<char*>(&_gamma), sizeof(_gamma));
+			// 读取_nb_levels的值
 			is.read(reinterpret_cast<char*>(&_nb_levels), sizeof(_nb_levels));
+			// 读取_lastbitsetrank的值
 			is.read(reinterpret_cast<char*>(&_lastbitsetrank), sizeof(_lastbitsetrank));
+			// 读取_nelem的值
 			is.read(reinterpret_cast<char*>(&_nelem), sizeof(_nelem));
-			
-			_levels.resize(_nb_levels);
-			
 
+			// 根据_nb_levels调整_levels数组的大小
+			_levels.resize(_nb_levels);
+
+			// 遍历每个级别，加载bitset数据
 			for(int ii=0; ii<_nb_levels; ii++)
 			{
+				// 加载_levels[ii]的bitset数据
 				//_levels[ii].bitset = new bitVector();
 				_levels[ii].bitset.load(is);
 			}
 
-
-
+			// 最小设置，重新计算每个级别的大小
 			//mini setup, recompute size of each level
 			_proba_collision = 1.0 -  pow(((_gamma*(double)_nelem -1 ) / (_gamma*(double)_nelem)),_nelem-1);
 			uint64_t previous_idx =0;
 			_hash_domain = (size_t)  (ceil(double(_nelem) * _gamma)) ;
 			for(int ii=0; ii<_nb_levels; ii++)
 			{
+				// 设置_levels[ii]的起始索引和哈希域大小
 				//_levels[ii] = new level();
 				_levels[ii].idx_begin = previous_idx;
 				_levels[ii].hash_domain =  (( (uint64_t) (_hash_domain * pow(_proba_collision,ii)) + 63) / 64 ) * 64;
@@ -1317,23 +1350,30 @@ we need this 2-functors scheme because HashFunctors won't work with unordered_ma
 				previous_idx += _levels[ii].hash_domain;
 			}
 
+			// 恢复最终的哈希表
 			//restore final hash
-
 			_final_hash.clear();
 			size_t final_hash_size ;
 
+			// 读取最终哈希表的大小
 			is.read(reinterpret_cast<char *>(&final_hash_size), sizeof(size_t));
 
+			// 遍历最终哈希表，加载键值对
 			for(unsigned int ii=0; ii<final_hash_size; ii++)
 			{
 				elem_t key;
 				uint64_t value;
 
+				// 读取键
 				is.read(reinterpret_cast<char *>(&key), sizeof(elem_t));
+				// 读取值
 				is.read(reinterpret_cast<char *>(&value), sizeof(uint64_t));
 
+				// 将键值对存入_final_hash中
 				_final_hash[key] = value;
 			}
+
+			// 标记为已构建
 			_built = true;
 		}
 
@@ -1342,68 +1382,93 @@ we need this 2-functors scheme because HashFunctors won't work with unordered_ma
 
 		void setup()
 		{
+			// 初始化互斥锁
 			pthread_mutex_init(&_mutex, NULL);
 
+			// 获取当前进程的PID，并和线程ID拼接成_pid
 			_pid = getpid() + printPt(pthread_self()) ;// + pthread_self();
-			//printf("pt self %llu  pid %i \n",printPt(pthread_self()),_pid);
 
+			// 初始化_cptTotalProcessed为0
 			_cptTotalProcessed=0;
 
-			
+			// 如果开启了快速模式
 			if(_fastmode)
 			{
+				// 根据快速模式的加载百分比和总元素个数计算setLevelFastmode数组的大小
 				setLevelFastmode.resize(_percent_elem_loaded_for_fastMode * (double)_nelem );
 			}
 
-			
+			// 初始化bufferperThread数组
 			bufferperThread.resize(_num_thread);
 			if(_writeEachLevel)
 			{
+				// 遍历每个线程对应的buffer
 				for(int ii=0; ii<_num_thread; ii++)
 				{
+					// 设置每个线程的buffer大小为WRITE_BUFF_SZ
 					// bufferperThread[ii].resize(WORK_CHUNK_SZ);
 					bufferperThread[ii].resize(WRITE_BUFF_SZ);
 				}
 			}
-			
+
+			// 计算碰撞概率
 			_proba_collision = 1.0 -  pow(((_gamma*(double)_nelem -1 ) / (_gamma*(double)_nelem)),_nelem-1);
 
+			// 计算几何级数之和
 			double sum_geom =_gamma * ( 1.0 +  _proba_collision / (1.0 - _proba_collision));
 			(void)sum_geom;
-			//printf("proba collision %f  sum_geom  %f   \n",_proba_collision,sum_geom);
 
+			// 初始化_nb_levels为25
 			_nb_levels = 25;
+			// 初始化_levels数组
 			_levels.resize(_nb_levels);
 
+			// 构建level
 			//build levels
 			uint64_t previous_idx =0;
 			for(int ii=0; ii<_nb_levels; ii++)
 			{
-
+				// 设置当前level的起始索引
 				_levels[ii].idx_begin = previous_idx;
 
-				// round size to nearest superior multiple of 64, makes it easier to clear a level
+				// 将哈希域的大小向上取整为64的倍数，便于清除level
 				_levels[ii].hash_domain =  (( (uint64_t) (_hash_domain * pow(_proba_collision,ii)) + 63) / 64 ) * 64;
+				// 如果哈希域的大小为0，则设置为64
 				if(_levels[ii].hash_domain == 0 ) _levels[ii].hash_domain  = 64 ;
+				// 更新下一个level的起始索引
 				previous_idx += _levels[ii].hash_domain;
 
+				// 打印当前level的起始索引和哈希域大小
 				//printf("build level %i bit array : start %12llu, size %12llu  ",ii,_levels[ii]->idx_begin,_levels[ii]->hash_domain );
+				// 打印当前level的预期元素个数占比
 				//printf(" expected elems : %.2f %% total \n",100.0*pow(_proba_collision,ii));
-
 			}
-			
+
+			// 查找快速模式的层级
 			for(int ii=0; ii<_nb_levels; ii++)
 			{
-				 if(pow(_proba_collision,ii) < _percent_elem_loaded_for_fastMode)
-				 {
-				 	_fastModeLevel = ii;
-				 	 //printf("fast mode level :  %i \n",ii);
-				 	break;
-				 }
+				// 如果当前层级的碰撞概率小于快速模式的加载百分比
+				if(pow(_proba_collision,ii) < _percent_elem_loaded_for_fastMode)
+				{
+					// 设置快速模式的层级为当前层级
+					_fastModeLevel = ii;
+					// 打印快速模式的层级
+					//printf("fast mode level :  %i \n",ii);
+					break;
+				}
 			}
 		}
 
 
+		/**
+		 * @brief 清理函数
+		 *
+		 * 清理并释放相关资源。
+		 *
+		 * 清除 setLevelFastmode 向量中的元素，并缩小向量到合适的大小。
+		 * 遍历 bufferperThread 向量，清空每个线程缓冲区，并缩小缓冲区到合适的大小。
+		 * 清空 bufferperThread 向量，并缩小向量到合适的大小。
+		 */
 		void cleanup()
 		{
 			setLevelFastmode.clear();
@@ -1474,6 +1539,14 @@ we need this 2-functors scheme because HashFunctors won't work with unordered_ma
 
 		//loop to insert into level i
 		template <typename Range>
+		/**
+		 * @brief 处理给定范围内的层级数据
+		 *
+		 * 根据给定的输入范围和层级索引，处理层级数据。
+		 *
+		 * @param input_range 输入范围
+		 * @param i 层级索引
+		 */
 		void processLevel(Range const& input_range,int i)
 		{
 			////alloc the bitset for this level
@@ -1657,33 +1730,57 @@ we need this 2-functors scheme because HashFunctors won't work with unordered_ma
 
 
     template <typename elem_t, typename Hasher_t, typename Range, typename it_type>
+	/**
+	 * @brief 线程处理函数
+	 *
+	 * 在给定的线程中执行处理任务。
+	 *
+	 * @param args 线程参数指针
+	 *
+	 * @return 返回值为空指针
+	 */
 	void * thread_processLevel(void * args)
 	{
 		if(args ==NULL) return NULL;
 
+		// 将传入的参数转换为thread_args类型的指针
 		thread_args<Range,it_type> *targ = (thread_args<Range,it_type>*) args;
 
+		// 将传入的boophf参数转换为mphf类型的指针
 		mphf<elem_t, Hasher_t>  * obw = (mphf<elem_t, Hasher_t > *) targ->boophf;
 		int level = targ->level;
 		int thread_id = targ->thread_id;
 		std::vector<elem_t> buffer;
+
+		// 根据level的值设置buffer的大小
+		// 如果level小于2，则使用WORK_CHUNK_SZ作为buffer的大小
+		// 否则使用LARGE_CHUNK_SZ作为buffer的大小
 		// buffer.resize(WORK_CHUNK_SZ);
 		buffer.resize(level < 2 ? WORK_CHUNK_SZ : LARGE_CHUNK_SZ);
-		
+
+		// 获取互斥锁mutex的指针
 		pthread_mutex_t * mutex =  & obw->_mutex;
 
+		// 创建一个空的unique_ptr<std::thread>对象，用于存储后台生产者线程的指针
 		std::unique_ptr<std::thread> producer{nullptr};	// The background key-stream producer thread.
 
+		// 加锁，保护获取起始迭代器startit的操作，确保不会被其他线程同时修改
 		pthread_mutex_lock(mutex); // from comment above: "//get starting iterator for this thread, must be protected (must not be currently used by other thread to copy elems in buff)"
-        
+
+		// 将传入的it_p参数转换为it_type类型的shared_ptr，并赋值给startit
 		std::shared_ptr<it_type> startit = std::static_pointer_cast<it_type>(targ->it_p);
-        std::shared_ptr<it_type> until_p = std::static_pointer_cast<it_type>(targ->until_p);
-		
+		// 将传入的until_p参数转换为it_type类型的shared_ptr，并赋值给until_p
+	       std::shared_ptr<it_type> until_p = std::static_pointer_cast<it_type>(targ->until_p);
+
+		// 启动生产者线程，只有在一个工作线程中唯一地启动
 		// Launch the producer thread uniquely, from one worker thread.
 		if(level < 2 && !startit->launched())
 		{
+			// 调用startit的launch_production方法，启动生产
 			startit->launch_production();
 
+			// 创建一个新的线程，并传入lambda表达式作为线程函数
+			// 在lambda表达式中，调用startit的seize_production方法，完成生产
 			producer.reset(
 				new std::thread([&startit]()
 				{
@@ -1693,18 +1790,24 @@ we need this 2-functors scheme because HashFunctors won't work with unordered_ma
 			);
 		}
 
+		// 解锁mutex
 		pthread_mutex_unlock(mutex);
 
+		// 调用obw的pthread_processLevel方法，处理线程级别的任务
 		obw->pthread_processLevel(buffer, startit, until_p, level, thread_id);
 
+		// 如果producer不为空，即生产者线程已创建
 		if(producer != nullptr)
 		{
+			// 如果生产者线程无法加入（即已结束或未正确创建）
 			if(!producer->joinable())
 			{
+				// 输出错误信息并退出程序
 				std::cerr << "Early termination encountered for the key-stream producer thread. Aborting.\n";
-        		std::exit(EXIT_FAILURE);
+	       		std::exit(EXIT_FAILURE);
 			}
-			
+
+			// 等待生产者线程结束
 			producer->join();
 		}
 

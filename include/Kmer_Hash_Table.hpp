@@ -2,22 +2,19 @@
 #ifndef KMER_HASH_TABLE_HPP
 #define KMER_HASH_TABLE_HPP
 
-
-
-#include "globals.hpp"
-#include "Kmer.hpp"
-#include "Kmer_Hasher.hpp"
-#include "State.hpp"
-#include "Kmer_Hash_Entry_API.hpp"
-#include "Spin_Lock.hpp"
-#include "Sparse_Lock.hpp"
 #include "BBHash/BooPHF.h"
+#include "Kmer.hpp"
+#include "Kmer_Hash_Entry_API.hpp"
+#include "Kmer_Hasher.hpp"
+#include "Sparse_Lock.hpp"
+#include "Spin_Lock.hpp"
+#include "State.hpp"
 #include "compact_vector/compact_vector.hpp"
-
-#include <cstdint>
+#include "globals.hpp"
+#include <boost/type_index.hpp>
 #include <cstddef>
+#include <cstdint>
 #include <string>
-
 
 class Build_Params;
 
@@ -266,7 +263,12 @@ template <uint16_t k, uint8_t BITS_PER_KEY>
 inline Kmer_Hash_Entry_API<BITS_PER_KEY> Kmer_Hash_Table<k, BITS_PER_KEY>::operator[](const uint64_t bucket_id)
 {
     sparse_lock.lock(bucket_id);//端点的hash值 >> 每个锁的碱基数量 索引对应的锁
+    // 上面是哈希表指针重载
+    // 这里是 bitvector [] 重载返回值
     const Kmer_Hash_Entry_API<BITS_PER_KEY> r(hash_table[bucket_id]);
+    // std::cout << "hash_table[bucket_id] 的类型是 "
+    //           << boost::typeindex::type_id_with_cvr<decltype(hash_table[bucket_id])>().pretty_name()
+    //           << std::endl;
     sparse_lock.unlock(bucket_id);
     
     return r;
@@ -281,10 +283,20 @@ inline Kmer_Hash_Entry_API<BITS_PER_KEY> Kmer_Hash_Table<k, BITS_PER_KEY>::opera
 
 
 template <uint16_t k, uint8_t BITS_PER_KEY>
+/**
+ * @brief 访问哈希表中指定 Kmer 的状态
+ *
+ * 通过给定的 Kmer 对象，在哈希表中查找对应的状态，并返回该状态。
+ *
+ * @param kmer Kmer 对象
+ *
+ * @return 哈希表中对应 Kmer 的状态
+ */
 inline const State Kmer_Hash_Table<k, BITS_PER_KEY>::operator[](const Kmer<k>& kmer) const
 {
+    // return mph->lookup(kmer);
     const uint64_t bucket = bucket_id(kmer);
-
+    // 获取指定桶的锁
     sparse_lock.lock(bucket);
     const State state(hash_table[bucket]);
     sparse_lock.unlock(bucket);
@@ -360,7 +372,6 @@ inline void Kmer_Hash_Table<k, BITS_PER_KEY>::update(const uint64_t bucket_id, c
     sparse_lock.unlock(bucket_id);
 }
 
-
 template <uint16_t k, uint8_t BITS_PER_KEY>
 /**
  * @brief 更新 Kmer 哈希表中的指定桶
@@ -368,15 +379,17 @@ template <uint16_t k, uint8_t BITS_PER_KEY>
  * 使用给定的状态转换函数更新 Kmer 哈希表中指定桶的值。
  *
  * @param bucket_id 桶的标识符
- * @param transform 状态转换函数指针，用于更新桶的值
+ * @param transform 一个函数指针，指向一个接受 cuttlefish::state_code_t
+ * 类型参数并返回 cuttlefish::state_code_t 类型结果的函数。
  */
-inline void Kmer_Hash_Table<k, BITS_PER_KEY>::update(const uint64_t bucket_id, cuttlefish::state_code_t (* const transform)(cuttlefish::state_code_t))
-{
-    sparse_lock.lock(bucket_id);
-    hash_table[bucket_id] = transform(hash_table[bucket_id]);
-    sparse_lock.unlock(bucket_id);
+inline void Kmer_Hash_Table<k, BITS_PER_KEY>::update(
+    const uint64_t bucket_id,
+    cuttlefish::state_code_t (*const transform)(cuttlefish::state_code_t)) {
+  sparse_lock.lock(bucket_id);
+  // transform 接收hash_table[bucket_id] 作为参数
+  hash_table[bucket_id] = transform(hash_table[bucket_id]);
+  sparse_lock.unlock(bucket_id);
 }
-
 
 template <uint16_t k, uint8_t BITS_PER_KEY>
 inline bool Kmer_Hash_Table<k, BITS_PER_KEY>::update_concurrent(Kmer_Hash_Entry_API<BITS_PER_KEY>& api_1, Kmer_Hash_Entry_API<BITS_PER_KEY>& api_2)

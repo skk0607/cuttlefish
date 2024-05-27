@@ -44,7 +44,7 @@ void Read_CdBG_Extractor<k>::extract_maximal_unitigs(const std::string& vertex_d
     const Kmer_Container<k> vertex_container(vertex_db_path);  // Wrapper container for the vertex-database.
     Kmer_SPMC_Iterator<k> vertex_parser(&vertex_container, params.thread_count());  // Parser for the vertices from the vertex-database.
     std::cout << "Number of distinct vertices: " << vertex_container.size() << ".\n";
-
+    //生产者线程开始
     vertex_parser.launch_production();
 
     // Clear the output file and initialize the output sink.
@@ -114,6 +114,7 @@ template <uint16_t k>
  */
 void Read_CdBG_Extractor<k>::process_vertices(Kmer_SPMC_Iterator<k>* const vertex_parser, const uint16_t thread_id)
 {
+    // 每个线程进入相同函数,局部变量都是不同的,相当于创建副本
     // Data structures to be reused per each vertex scanned.
     // 每个扫描的顶点都重用数据结构。
     Kmer<k> v_hat;  // The vertex copy to be scanned one-by-one.逐一扫描顶点副本。
@@ -135,6 +136,7 @@ void Read_CdBG_Extractor<k>::process_vertices(Kmer_SPMC_Iterator<k>* const verte
         {
             if(extract_maximal_unitig(v_hat, maximal_unitig))
             {
+                //标记前向和后向的状态为已经输出
                 mark_maximal_unitig(maximal_unitig);
 
                 extracted_unipaths_info.add_maximal_unitig(maximal_unitig);
@@ -145,7 +147,7 @@ void Read_CdBG_Extractor<k>::process_vertices(Kmer_SPMC_Iterator<k>* const verte
                     progress = 0;
             }
 
-            vertex_count++;
+            vertex_count++;//每个线程各自统计顶点数
             if(progress_tracker.track_work(++progress))
                 progress = 0;
         }

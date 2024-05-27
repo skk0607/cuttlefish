@@ -79,14 +79,28 @@ void dBG_Info<k>::add_short_seqs_info(const std::vector<std::pair<std::string, s
 
 
 template <uint16_t k>
+/**
+ * @brief 添加单元路径信息
+ *
+ * 将给定的单元路径元信息添加到当前对象的 dBg_info 字典中。
+ *
+ * @param unipaths_info 单元路径元信息对象
+ */
 void dBG_Info<k>::add_unipaths_info(const Unipaths_Meta_info<k>& unipaths_info)
 {
+    // 添加最大单元格数量信息
     dBg_info[contigs_field]["maximal unitig count"] = unipaths_info.unipath_count();
+    // 添加最大单元格中的顶点数量信息
     dBg_info[contigs_field]["vertex count in the maximal unitigs"] = unipaths_info.kmer_count();
+    // 添加最短最大单元格长度信息
     dBg_info[contigs_field]["shortest maximal unitig length"] = unipaths_info.min_len();
+    // 添加最长最大单元格长度信息
     dBg_info[contigs_field]["longest maximal unitig length"] = unipaths_info.max_len();
+    // 添加最大单元格长度的总和信息
     dBg_info[contigs_field]["sum maximal unitig length"] = unipaths_info.sum_len();
+    // 添加最大单元格长度的平均值信息
     dBg_info[contigs_field]["avg. maximal unitig length"] = unipaths_info.avg_len();
+    // 添加注释信息，说明长度是以碱基为单位的
     dBg_info[contigs_field]["_comment"] = "lengths are in bases";
 }
 
